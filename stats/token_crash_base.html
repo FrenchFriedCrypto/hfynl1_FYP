@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Token Balance and USD Value After Crash</title>
+  <!-- Include Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    /* Central container for all content */
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    /* Individual chart container */
+    .chart-container {
+      width: 800px;
+      margin: 0 auto 50px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Liquidity Pool Balances and Total USD Value After Token A Crash</h2>
+    <p>This demonstration shows how token balances change as Token A’s market price crashes. The x‑axis labels include the crash severity (e.g. "50% crash") and, on the line below, the total USD value of the pool (assuming all tokens initially valued at $1, with only Token A dropping in value).</p>
+
+    <!-- Standard Pool Chart -->
+    <div class="chart-container">
+      <h3>Standard Liquidity Pool (2-token)</h3>
+      <canvas id="chartStandard"></canvas>
+    </div>
+
+    <!-- Multicoin Pool Chart -->
+    <div class="chart-container">
+      <h3>Multicoin Liquidity Pool (3-token)</h3>
+      <canvas id="chartMulti"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // Labels for crash severity.
+    const labels = ["50% crash", "55% crash", "60% crash", "65% crash", "70% crash", "75% crash", "80% crash", "85% crash", "90% crash", "95% crash"];
+
+    // p values for each crash scenario (e.g., p = 0.5 for a 50% crash, meaning the token price is 50% of its original)
+    const pValues = [0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05];
+
+    // Data for Standard (2-token) pool:
+    // Token A balance increases as p decreases, while Token B balance decreases.
+    const standardTokenA = pValues.map(p => 100 / Math.sqrt(p));
+    const standardTokenB = pValues.map(p => 100 * Math.sqrt(p));
+
+    // Data for Multicoin (3-token) pool:
+    // Token A balance = 100/(p^(2/3)); Tokens B and C balance = 100*(p^(1/3))
+    const multiTokenA = pValues.map(p => 100 / Math.pow(p, 2/3));
+    const multiTokenB = pValues.map(p => 100 * Math.pow(p, 1/3));
+    const multiTokenC = multiTokenB; // Same as Token B
+
+    // Create the Standard Pool chart
+    const ctxStandard = document.getElementById('chartStandard').getContext('2d');
+    const chartStandard = new Chart(ctxStandard, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Token A Balance',
+            data: standardTokenA,
+            backgroundColor: 'rgba(54, 162, 235, 0.7)'
+          },
+          {
+            label: 'Token B Balance',
+            data: standardTokenB,
+            backgroundColor: 'rgba(255, 99, 132, 0.7)'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: 'Standard Liquidity Pool Balances'
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Crash Severity and Total USD Value' },
+            ticks: {
+              callback: function(value, index, ticks) {
+                // For the standard pool, total USD value = 200 * √p
+                let p = pValues[index];
+                let totalUSD = 200 * Math.sqrt(p);
+                // Return an array to create a two-line label
+                return [labels[index], "USD: " + totalUSD.toFixed(2)];
+              }
+            }
+          },
+          y: {
+            title: { display: true, text: 'Token Balance' }
+          }
+        }
+      }
+    });
+
+    // Create the Multicoin Pool chart
+    const ctxMulti = document.getElementById('chartMulti').getContext('2d');
+    const chartMulti = new Chart(ctxMulti, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Token A Balance',
+            data: multiTokenA,
+            backgroundColor: 'rgba(54, 162, 235, 0.7)'
+          },
+          {
+            label: 'Token B Balance',
+            data: multiTokenB,
+            backgroundColor: 'rgba(255, 99, 132, 0.7)'
+          },
+          {
+            label: 'Token C Balance',
+            data: multiTokenC,
+            backgroundColor: 'rgba(75, 192, 192, 0.7)'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: 'Multicoin Liquidity Pool Balances'
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Crash Severity and Total USD Value' },
+            ticks: {
+              callback: function(value, index, ticks) {
+                // For the multicoin pool, total USD value = 300 * (p^(1/3))
+                let p = pValues[index];
+                let totalUSD = 300 * Math.pow(p, 1/3);
+                return [labels[index], "USD: " + totalUSD.toFixed(2)];
+              }
+            }
+          },
+          y: {
+            title: { display: true, text: 'Token Balance' }
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

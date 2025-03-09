@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Capital Efficiency: Dual vs Multicoin Liquidity Pools</title>
+  <!-- Include Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .chart-container {
+      width: 1050px;
+      margin: 30px auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Capital Efficiency Comparison</h2>
+    <p>
+      In a dual liquidity pool setup for tokens A, B, and C, you must create two pools (e.g. A–B and A–C). Each pool requires 1000 tokens of each asset. With tokens priced at $1, this amounts to $2000 per pool and a total of $4000.
+      In contrast, a multicoin liquidity pool requires 1000 tokens of each asset in a single pool, totaling $3000.
+    </p>
+
+    <!-- Dual Pools Chart -->
+    <div class="chart-container">
+      <canvas id="dualChart"></canvas>
+    </div>
+
+    <!-- Multicoin Pool Chart -->
+    <div class="chart-container">
+      <canvas id="multiChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // ---------------------------
+    // Dual Liquidity Pools Chart
+    // ---------------------------
+    // For the dual pools, we assume:
+    //   Pool 1 (A–B): 1000 Token A and 1000 Token B ($2000 capital)
+    //   Pool 2 (A–C): 1000 Token A and 1000 Token C ($2000 capital)
+    // Total capital required is $4000.
+    const dualLabels = ["Pool 1 (A–B)", "Pool 2 (A–C)"];
+    const dualDataTokenA = [1000, 1000]; // Both pools deposit 1000 of A
+    const dualDataTokenB = [1000, 0];     // Pool 1 deposits 1000 of B only
+    const dualDataTokenC = [0, 1000];     // Pool 2 deposits 1000 of C only
+
+    const ctxDual = document.getElementById('dualChart').getContext('2d');
+    const dualChart = new Chart(ctxDual, {
+      type: 'bar',
+      data: {
+        labels: dualLabels,
+        datasets: [
+          {
+            label: 'Token A ($1000)',
+            data: dualDataTokenA,
+            backgroundColor: 'rgba(54, 162, 235, 0.7)'
+          },
+          {
+            label: 'Token B ($1000)',
+            data: dualDataTokenB,
+            backgroundColor: 'rgba(255, 99, 132, 0.7)'
+          },
+          {
+            label: 'Token C ($1000)',
+            data: dualDataTokenC,
+            backgroundColor: 'rgba(255, 205, 86, 0.7)'
+          }
+        ]
+      },
+      options: {
+        plugins: {
+          title: {
+            display: true,
+            text: 'Dual Liquidity Pools Capital Requirement (Total USD: $4000)'
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.dataset.label + ": $" + context.raw;
+              }
+            }
+          }
+        },
+        responsive: true,
+        scales: {
+          x: {
+            stacked: true,
+            title: {
+              display: true,
+              text: 'Dual Pools'
+            }
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Capital (USD)'
+            }
+          }
+        }
+      }
+    });
+
+    // ---------------------------
+    // Multicoin Liquidity Pool Chart
+    // ---------------------------
+    // For the multicoin pool, you deposit:
+    //   1000 Token A, 1000 Token B, and 1000 Token C,
+    // which totals $3000.
+    const multiLabels = ["Multicoin Pool (A, B, C)"];
+    const multiDataTokenA = [1000];
+    const multiDataTokenB = [1000];
+    const multiDataTokenC = [1000];
+
+    const ctxMulti = document.getElementById('multiChart').getContext('2d');
+    const multiChart = new Chart(ctxMulti, {
+      type: 'bar',
+      data: {
+        labels: multiLabels,
+        datasets: [
+          {
+            label: 'Token A ($1000)',
+            data: multiDataTokenA,
+            backgroundColor: 'rgba(54, 162, 235, 0.7)'
+          },
+          {
+            label: 'Token B ($1000)',
+            data: multiDataTokenB,
+            backgroundColor: 'rgba(255, 99, 132, 0.7)'
+          },
+          {
+            label: 'Token C ($1000)',
+            data: multiDataTokenC,
+            backgroundColor: 'rgba(255, 205, 86, 0.7)'
+          }
+        ]
+      },
+      options: {
+        plugins: {
+          title: {
+            display: true,
+            text: 'Multicoin Liquidity Pool Capital Requirement (Total USD: $3000)'
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.dataset.label + ": $" + context.raw;
+              }
+            }
+          }
+        },
+        responsive: true,
+        scales: {
+          x: {
+            stacked: true,
+            title: {
+              display: true,
+              text: 'Multicoin Pool'
+            }
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Capital (USD)'
+            }
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

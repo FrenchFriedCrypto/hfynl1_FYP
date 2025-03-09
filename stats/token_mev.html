@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>MEV Bot Influence: Dual vs Multicoin Liquidity Pools</title>
+  <!-- Include Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .chart-container {
+      width: 1050px;
+      margin: 0 auto 50px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>MEV Bot Influence Simulation on Liquidity Pools</h2>
+    <p>
+      This page simulates the effects of an MEV bot on a constant‑product liquidity pool. For each “tier” (the x‑axis, from 10% to 100% of 1000 tokens of A),
+      the bot front‑runs by swapping that fraction of A into the pool before a user swaps 100 tokens of A. Then, the bot back‑runs by swapping its acquired tokens back to A.
+      The dual‑token pool (A–B) is simulated on the left, and a multicoin pool—with two output tokens (B and C) and improved pricing—is simulated on the right.
+      In the dual pool the ideal (no‑slippage) user swap would yield 100 tokens, while in the multicoin pool the ideal output is doubled (200 tokens total).
+      For each simulation the final pool balances are shown as bars, a line shows the user’s slippage (%) relative to the ideal swap, and a second line shows the bot’s profit in Token A.
+    </p>
+
+    <!-- Dual Pool Chart -->
+    <div class="chart-container">
+      <h3>Dual Token Liquidity Pool (A–B)</h3>
+      <canvas id="mevChart"></canvas>
+    </div>
+
+    <!-- Multicoin Pool Chart -->
+    <div class="chart-container">
+      <h3>Multicoin Liquidity Pool (A, B, &amp; C)</h3>
+      <canvas id="mevMultiChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // -------------------------------
+    // Parameters for both simulations
+    // -------------------------------
+    const initialA = 1000;
+    const initialB = 1000;
+    const invariant = initialA * initialB; // 1,000,000 constant-product
+    const userSwapAmount = 100; // user swaps 100 tokens of A in both cases
+
+    // -------------------------------
+    // Dual Token Pool Simulation
+    // -------------------------------
+    const tiers = [];           // Tier labels: "10%", "20%", ..., "100%"
+    const finalTokenA = [];     // Final A balance after all swaps
+    const finalTokenB = [];     // Final B balance
+    const userSlippage = [];    // User slippage percentage (compared to an ideal 1:1 swap: 100 tokens)
+    const botProfit = [];       // Bot profit in tokens of A
+
+    // For each tier, the bot front-runs with a fraction of 1000 A
+    for (let i = 1; i <= 10; i++) {
+      let influencePct = i * 0.1;
+      tiers.push((i * 10) + "%");
+
+      // --- Bot Front-run (Dual Pool) ---
+      // Bot swaps X_bot = influencePct * 1000 A for B using the invariant.
+      let botSwapIn = initialA * influencePct;
+      let A_after_bot = initialA + botSwapIn;
+      let B_after_bot = invariant / (initialA + botSwapIn);
+      let botReceived = initialB - B_after_bot;  // tokens of B acquired by bot
+
+      // --- User Swap ---
+      // User swaps a fixed 100 A.
+      let A_pre_user = A_after_bot;
+      let B_pre_user = B_after_bot;
+      let A_after_user = A_pre_user + userSwapAmount;
+      // User's actual output from B determined by the invariant:
+      let userOutput = B_pre_user - (invariant / (A_pre_user + userSwapAmount));
+      // Ideal (estimated) output is 100 tokens.
+      let slippage = ((userSwapAmount - userOutput) / userSwapAmount) * 100;
+      let B_after_user = B_pre_user - userOutput;
+
+      // --- Bot Back-run ---
+      // Bot swaps its acquired B back to A.
+      let A_pre_bot_back = A_after_user;
+      let B_pre_bot_back = B_after_user;
+      let botOutputA = A_pre_bot_back - (invariant / (B_pre_bot_back + botReceived));
+      let profit = botOutputA - botSwapIn;
+
+      // --- Final Pool State (Dual) ---
+      let A_final = A_pre_bot_back - botOutputA;
+      let B_final = B_pre_bot_back + botReceived;
+
+      finalTokenA.push(A_final);
+      finalTokenB.push(B_final);
+      userSlippage.push(slippage);
+      botProfit.push(profit);
+    }
+
+    // Create the Dual Pool Chart
+    const ctxDual = document.getElementById('mevChart').getContext('2d');
+    const dualChart = new Chart(ctxDual, {
+      data: {
+        labels: tiers,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Final Token A Balance',
+            data: finalTokenA,
+            backgroundColor: 'rgba(54, 162, 235, 0.7)',
+            yAxisID: 'y',
+          },
+          {
+            type: 'bar',
+            label: 'Final Token B Balance',
+            data: finalTokenB,
+            backgroundColor: 'rgba(255, 99, 132, 0.7)',
+            yAxisID: 'y',
+          },
+          {
+            type: 'line',
+            label: 'User Slippage (%)',
+            data: userSlippage,
+            borderColor: 'rgba(75, 192, 192, 1)',
+            backgroundColor: 'rgba(75, 192, 192, 0.3)',
+            yAxisID: 'y1',
+            tension: 0.2,
+            fill: false,
+            pointRadius: 4,
+          },
+          {
+            type: 'line',
+            label: 'Bot Profit (Token A)',
+            data: botProfit,
+            borderColor: 'rgba(153, 102, 255, 1)',
+            backgroundColor: 'rgba(153, 102, 255, 0.3)',
+            yAxisID: 'y1',
+            tension: 0.2,
+            fill: false,
+            pointRadius: 4,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: 'Dual Token Pool: Final Balances, User Slippage, &amp; Bot Profit'
+          },
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Bot Influence Tier (Front-run Amount as % of 1000 A)'
+            }
+          },
+          y: {
+            type: 'linear',
+            position: 'left',
+            title: {
+              display: true,
+              text: 'Final Token Balances'
+            },
+            beginAtZero: true,
+          },
+          y1: {
+            type: 'linear',
+            position: 'right',
+            title: {
+              display: true,
+              text: 'User Slippage (%) / Bot Profit (Token A)'
+            },
+            grid: {
+              drawOnChartArea: false,
+            },
+            beginAtZero: true,
+          }
+        }
+      }
+    });
+
+    // -------------------------------
+    // Multicoin Pool Simulation
+    // -------------------------------
+    // Here the pool has three tokens: A, B, and C (each starting at 1000).
+    // For the multicoin pool, we assume that the ideal (no‑slippage) user swap yields 200 tokens total,
+    // because the user can draw liquidity from both output tokens (B and C).
+    // We model the multicoin pool as two separate sub‐pools:
+    //   • A–B pool: which the bot influences (via front‑run and back‑run)
+    //   • A–C pool: which remains unaffected by the bot.
+    // The user splits the 100 tokens of A equally: 50 tokens go to swap in each sub‐pool.
+
+    const initialC = 1000; // for token C in the A–C pool
+    const invariantAC = initialA * initialC; // 1,000,000 constant-product for A–C pool
+
+    const tiersMulti = [];
+    const finalTokenA_multi = [];  // aggregated final A balance (sum of A from both sub-pools)
+    const finalTokenB_multi = [];  // final token B balance from the A–B pool
+    const finalTokenC_multi = [];  // final token C balance from the A–C pool
+    const userSlippage_multi = []; // user slippage (%) relative to an ideal output of 200 tokens
+    const botProfit_multi = [];    // bot profit in Token A (from the A–B sub-pool)
+
+    for (let i = 1; i <= 10; i++) {
+      let influencePct = i * 0.1;
+      tiersMulti.push((i * 10) + "%");
+
+      // --- Bot Front-run in A–B Sub-Pool ---
+      let botSwapIn = initialA * influencePct;
+      let A_B_after_bot = initialA + botSwapIn;
+      let B_after_bot = invariant / (initialA + botSwapIn);
+      let botReceived = initialB - B_after_bot;
+
+      // --- A–C Sub-Pool remains unchanged pre-user swap ---
+      let A_C_initial = initialA;
+      let C_initial = initialC;
+
+      // --- User Swap (split equally between A–B and A–C) ---
+      let swapAB = userSwapAmount / 2; // 50 tokens into A–B pool
+      let swapAC = userSwapAmount / 2; // 50 tokens into A–C pool
+
+      // In the A–B pool:
+      let A_B_after_user = A_B_after_bot + swapAB;
+      let outputB = B_after_bot - (invariant / (A_B_after_bot + swapAB));
+      // In the A–C pool (unchanged by bot):
+      let A_C_after_user = A_C_initial + swapAC; // 1000 + 50 = 1050
+      let outputC = C_initial - (invariantAC / (A_C_initial + swapAC));
+
+      // Total user output:
+      let totalUserOutput = outputB + outputC;
+      // Ideal estimated output is 2 * userSwapAmount = 200 tokens.
+      let idealOutput = 2 * userSwapAmount;
+      let slippage_multi_value = ((idealOutput - totalUserOutput) / idealOutput) * 100;
+
+      // --- Bot Back-run in A–B Sub-Pool ---
+      let B_after_user = B_after_bot - outputB;
+      let A_pre_bot_back = A_B_after_user;
+      let B_pre_bot_back = B_after_user;
+      let botOutputA = A_pre_bot_back - (invariant / (B_pre_bot_back + botReceived));
+      let profit = botOutputA - botSwapIn;
+
+      // Final state in the A–B pool:
+      let A_B_final = A_B_after_user - botOutputA;
+      let B_B_final = B_after_user + botReceived;
+      // Final state in the A–C pool:
+      let A_C_final = A_C_after_user; // remains as after user swap
+      let C_final = C_initial - outputC;
+
+      // For reporting, aggregate final Token A balance as the sum from both sub-pools.
+      let A_final_multi = A_B_final + A_C_final;
+
+      finalTokenA_multi.push(A_final_multi);
+      finalTokenB_multi.push(B_B_final);
+      finalTokenC_multi.push(C_final);
+      userSlippage_multi.push(slippage_multi_value);
+      botProfit_multi.push(profit);
+    }
+
+    // Create the Multicoin Pool Chart
+    const ctxMulti = document.getElementById('mevMultiChart').getContext('2d');
+    const multiChart = new Chart(ctxMulti, {
+      data: {
+        labels: tiersMulti,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Final Aggregated Token A Balance',
+            data: finalTokenA_multi,
+            backgroundColor: 'rgba(54, 162, 235, 0.7)',
+            yAxisID: 'y',
+          },
+          {
+            type: 'bar',
+            label: 'Final Token B Balance (A–B Pool)',
+            data: finalTokenB_multi,
+            backgroundColor: 'rgba(255, 99, 132, 0.7)',
+            yAxisID: 'y',
+          },
+          {
+            type: 'bar',
+            label: 'Final Token C Balance (A–C Pool)',
+            data: finalTokenC_multi,
+            backgroundColor: 'rgba(255, 205, 86, 0.7)',
+            yAxisID: 'y',
+          },
+          {
+            type: 'line',
+            label: 'User Slippage (%)',
+            data: userSlippage_multi,
+            borderColor: 'rgba(75, 192, 192, 1)',
+            backgroundColor: 'rgba(75, 192, 192, 0.3)',
+            yAxisID: 'y1',
+            tension: 0.2,
+            fill: false,
+            pointRadius: 4,
+          },
+          {
+            type: 'line',
+            label: 'Bot Profit (Token A)',
+            data: botProfit_multi,
+            borderColor: 'rgba(153, 102, 255, 1)',
+            backgroundColor: 'rgba(153, 102, 255, 0.3)',
+            yAxisID: 'y1',
+            tension: 0.2,
+            fill: false,
+            pointRadius: 4,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: 'Multicoin Pool: Final Balances, User Slippage, &amp; Bot Profit'
+          },
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Bot Influence Tier (Front-run Amount as % of 1000 A)'
+            }
+          },
+          y: {
+            type: 'linear',
+            position: 'left',
+            title: {
+              display: true,
+              text: 'Final Token Balances'
+            },
+            beginAtZero: true,
+          },
+          y1: {
+            type: 'linear',
+            position: 'right',
+            title: {
+              display: true,
+              text: 'User Slippage (%) / Bot Profit (Token A)'
+            },
+            grid: {
+              drawOnChartArea: false,
+            },
+            beginAtZero: true,
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

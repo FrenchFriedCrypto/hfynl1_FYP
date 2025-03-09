@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Transaction Costs Comparison: Dual vs Multicoin Pool</title>
+  <!-- Include Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      margin: 20px; 
+    }
+    .container { 
+      max-width: 1000px; 
+      margin: 0 auto; 
+      text-align: center; 
+    }
+    .chart-container { 
+      width: 950px; 
+      margin: 0 auto 50px; 
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Transaction Costs Simulation (Swap Fees)</h2>
+    <p>
+      Every pool hop charges a 0.3% fee. In a dual‑token pool the user may need to traverse 1–5 hops (compounding the fee),
+      while in a multicoin pool the swap happens in one hop.
+      All pools start with a 1000:1000 reserve and the user swaps 100 tokens.
+      The bars below show the final target tokens received, and the lines show the effective fee (the percentage loss relative to the ideal 100 tokens).
+      The multicoin pool result appears in the 1‑hop slot for easy comparison.
+    </p>
+
+    <!-- Combined Chart -->
+    <div class="chart-container">
+      <canvas id="combinedChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // Swap function per hop with fee.
+    // Given an input x, returns the output tokens from a pool (with reserves 1000:1000) charging a 0.3% fee.
+    function swapOutput(x) {
+      const feeFactor = 0.997; // 0.3% fee
+      const effectiveInput = x * feeFactor;
+      const output = (effectiveInput * 1000) / (1000 + effectiveInput);
+      return output;
+    }
+
+    // The user intends to swap 100 tokens.
+    const initialSwap = 100;
+
+    // --- Dual Token Pool Simulation for 1 to 5 hops ---
+    const hops = [1, 2, 3, 4, 5]; // x-axis labels: "1 Hop", "2 Hops", etc.
+    const dualOutputs = [];
+    hops.forEach(hopCount => {
+      let amount = initialSwap;
+      for (let i = 0; i < hopCount; i++) {
+        amount = swapOutput(amount);
+      }
+      dualOutputs.push(amount);
+    });
+    
+    // Effective fee (%) = (ideal - actual)/ideal * 100. Ideal is 100 tokens.
+    const dualFeePercentages = dualOutputs.map(output => ((100 - output) / 100) * 100);
+
+    // --- Multicoin Pool Simulation (Single hop) ---
+    const multiOutput = swapOutput(initialSwap);
+    const multiFeePercentage = ((100 - multiOutput) / 100) * 100;
+
+    // Build data for combined chart:
+    // For the dual token pool, we have outputs for hops 1-5.
+    // For the multicoin pool, we show its single-hop output only at the "1 Hop" slot and null for others.
+    const combinedDualData = dualOutputs; // [dual hop1, dual hop2, ... dual hop5]
+    const combinedMultiData = [multiOutput, null, null, null, null];
+    const combinedDualFee = dualFeePercentages; // fee percentages for dual pool hops
+    const combinedMultiFee = [multiFeePercentage, null, null, null, null];
+
+    // Labels for the x-axis.
+    const labels = hops.map(h => h + " Hop" + (h > 1 ? "s" : ""));
+
+    // Create combined chart (bars for target tokens, lines for effective fee %)
+    const ctx = document.getElementById('combinedChart').getContext('2d');
+    const combinedChart = new Chart(ctx, {
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Dual Token Pool Output',
+            data: combinedDualData,
+            backgroundColor: 'rgba(54, 162, 235, 0.7)',
+            yAxisID: 'y',
+          },
+          {
+            type: 'bar',
+            label: 'Multicoin Pool Output',
+            data: combinedMultiData,
+            backgroundColor: 'rgba(255, 159, 64, 0.7)',
+            yAxisID: 'y',
+          },
+          {
+            type: 'line',
+            label: 'Dual Pool Transaction Fee (%)',
+            data: combinedDualFee,
+            borderColor: 'rgba(75, 192, 192, 1)',
+            backgroundColor: 'rgba(75, 192, 192, 0.3)',
+            yAxisID: 'y1',
+            tension: 0.2,
+            fill: false,
+            pointRadius: 4,
+          },
+          {
+            type: 'line',
+            label: 'Multicoin Pool Transaction Fee (%)',
+            data: combinedMultiFee,
+            borderColor: 'rgba(153, 102, 255, 1)',
+            backgroundColor: 'rgba(153, 102, 255, 0.3)',
+            yAxisID: 'y1',
+            tension: 0.2,
+            fill: false,
+            pointRadius: 4,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: 'Final Target Token Output & Transaction Fees'
+          },
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Number of Pool Hops (1 Hop: Dual vs. Multicoin)'
+            }
+          },
+          y: {
+            type: 'linear',
+            position: 'left',
+            title: {
+              display: true,
+              text: 'Target Tokens Received'
+            },
+            beginAtZero: true,
+          },
+          y1: {
+            type: 'linear',
+            position: 'right',
+            title: {
+              display: true,
+              text: 'Transaction Fee (%)'
+            },
+            grid: {
+              drawOnChartArea: false,
+            },
+            beginAtZero: true,
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

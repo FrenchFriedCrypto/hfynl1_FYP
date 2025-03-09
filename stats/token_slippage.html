@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Swap Slippage: Dual vs Multicoin Liquidity Pools</title>
+  <!-- Include Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .chart-container {
+      width: 950px;
+      margin: 0 auto 50px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Swap Slippage Simulation: Dual vs Multicoin Liquidity Pools</h2>
+    <p>
+      Each pool starts with a base balance of 1000 tokens per asset. The x‑axis shows the amount of Token A being swapped.
+      For a dual‐token pool the “estimated” output is equal to the swap amount (i.e. 1:1), and the “actual” output is determined via the x·y = constant invariant.
+      In the multicoin pool (which has two output tokens, B and C) the “ideal” output is doubled, but we assume its slippage is reduced (here by a factor of 3).
+      The slippage % is plotted as a line.
+    </p>
+
+    <!-- Dual Pool Chart -->
+    <div class="chart-container">
+      <h3>Dual Token Liquidity Pool</h3>
+      <canvas id="dualChart"></canvas>
+    </div>
+
+    <!-- Multicoin Pool Chart -->
+    <div class="chart-container">
+      <h3>Multicoin Liquidity Pool</h3>
+      <canvas id="multiChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // Swap amounts for Token A
+    const swapAmounts = [10, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900];
+
+    // Arrays for Dual Pool
+    const dualTokenA = [];   // new balance of Token A = 1000 + Δx
+    const dualTokenB = [];   // new balance of Token B = 1000 - (actual output)
+    const dualSlippage = []; // slippage % = ((estimated - actual)/estimated)*100, where estimated = Δx
+
+    // Arrays for Multicoin Pool
+    const multiTokenA = [];   // new balance of Token A = 1000 + Δx
+    const multiTokenB = [];   // new balance of Token B = 1000 - (half the output)
+    const multiTokenC = [];   // new balance of Token C = 1000 - (half the output)
+    const multiSlippage = []; // slippage % for multicoin pool
+
+    // Reduction factor for multicoin pool slippage (simulate improved pricing)
+    const K = 3;
+
+    // Calculate data for each swap amount
+    swapAmounts.forEach(amount => {
+      // --- Dual Pool Calculations ---
+      // Starting reserves: A = 1000, B = 1000, invariant: (1000+Δx) * (1000-Δy) = 1,000,000.
+      const newA_dual = 1000 + amount;
+      const dualOutput = 1000 - (1000000 / (1000 + amount)); // actual Token B output
+      const newB_dual = 1000 - dualOutput;
+      const estimatedOutput_dual = amount; // since 1:1 price before swap
+      const slippage_dual = ((estimatedOutput_dual - dualOutput) / estimatedOutput_dual) * 100;
+
+      dualTokenA.push(newA_dual);
+      dualTokenB.push(newB_dual);
+      dualSlippage.push(slippage_dual);
+
+      // --- Multicoin Pool Calculations ---
+      // Assume pool has three tokens: A, B, C. Both output tokens (B & C) are used,
+      // so the estimated (no‐slippage) output is 2*Δx.
+      // For modeling, we first compute the dual pool’s output and then reduce its percentage slippage.
+      const s_dual = (amount - dualOutput) / amount; // dual pool slippage as a fraction
+      const s_multi = s_dual / K;                   // reduced slippage in multicoin pool
+      const estimatedOutput_multi = 2 * amount;      // ideal output (from B+C)
+      const actualOutput_multi = estimatedOutput_multi * (1 - s_multi); // total actual output
+      const outputEach = actualOutput_multi / 2;     // assume equal draw from B and C
+      const newA_multi = 1000 + amount;
+      const newB_multi = 1000 - outputEach;
+      const newC_multi = 1000 - outputEach;
+      const slippage_multi = ((estimatedOutput_multi - actualOutput_multi) / estimatedOutput_multi) * 100;
+
+      multiTokenA.push(newA_multi);
+      multiTokenB.push(newB_multi);
+      multiTokenC.push(newC_multi);
+      multiSlippage.push(slippage_multi);
+    });
+
+    // ----- Create Dual Pool Chart (Mixed: Bars for balances, Line for slippage) -----
+    const ctxDual = document.getElementById('dualChart').getContext('2d');
+    const dualChart = new Chart(ctxDual, {
+      data: {
+        labels: swapAmounts.map(x => x.toString()),
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Token A Balance',
+            data: dualTokenA,
+            backgroundColor: 'rgba(54, 162, 235, 0.7)',
+            yAxisID: 'y',
+          },
+          {
+            type: 'bar',
+            label: 'Token B Balance',
+            data: dualTokenB,
+            backgroundColor: 'rgba(255, 99, 132, 0.7)',
+            yAxisID: 'y',
+          },
+          {
+            type: 'line',
+            label: 'Slippage %',
+            data: dualSlippage,
+            borderColor: 'rgba(75, 192, 192, 1)',
+            backgroundColor: 'rgba(75, 192, 192, 0.3)',
+            yAxisID: 'y1',
+            tension: 0.2,
+            fill: false,
+            pointRadius: 4,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: 'Dual Token Pool Balances and Slippage'
+          },
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Token A Swap Amount'
+            }
+          },
+          y: {
+            type: 'linear',
+            position: 'left',
+            title: {
+              display: true,
+              text: 'Token Balance'
+            },
+            beginAtZero: true
+          },
+          y1: {
+            type: 'linear',
+            position: 'right',
+            title: {
+              display: true,
+              text: 'Slippage (%)'
+            },
+            grid: {
+              drawOnChartArea: false,
+            },
+            beginAtZero: true
+          }
+        }
+      }
+    });
+
+    // ----- Create Multicoin Pool Chart (Mixed: Bars for balances, Line for slippage) -----
+    const ctxMulti = document.getElementById('multiChart').getContext('2d');
+    const multiChart = new Chart(ctxMulti, {
+      data: {
+        labels: swapAmounts.map(x => x.toString()),
+        datasets: [
+          {
+            type: 'bar',
+            label: 'Token A Balance',
+            data: multiTokenA,
+            backgroundColor: 'rgba(54, 162, 235, 0.7)',
+            yAxisID: 'y',
+          },
+          {
+            type: 'bar',
+            label: 'Token B Balance',
+            data: multiTokenB,
+            backgroundColor: 'rgba(255, 99, 132, 0.7)',
+            yAxisID: 'y',
+          },
+          {
+            type: 'bar',
+            label: 'Token C Balance',
+            data: multiTokenC,
+            backgroundColor: 'rgba(153, 102, 255, 0.7)',
+            yAxisID: 'y',
+          },
+          {
+            type: 'line',
+            label: 'Slippage %',
+            data: multiSlippage,
+            borderColor: 'rgba(75, 192, 192, 1)',
+            backgroundColor: 'rgba(75, 192, 192, 0.3)',
+            yAxisID: 'y1',
+            tension: 0.2,
+            fill: false,
+            pointRadius: 4,
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: 'Multicoin Pool Balances and Slippage'
+          },
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Token A Swap Amount'
+            }
+          },
+          y: {
+            type: 'linear',
+            position: 'left',
+            title: {
+              display: true,
+              text: 'Token Balance'
+            },
+            beginAtZero: true
+          },
+          y1: {
+            type: 'linear',
+            position: 'right',
+            title: {
+              display: true,
+              text: 'Slippage (%)'
+            },
+            grid: {
+              drawOnChartArea: false,
+            },
+            beginAtZero: true
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

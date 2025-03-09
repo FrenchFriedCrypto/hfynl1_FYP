@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Capital Efficiency Comparison for 5 Tokens</title>
+  <!-- Include Chart.js from CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      text-align: center;
+    }
+    .chart-container {
+      width: 1050px;
+      margin: 30px auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Capital Efficiency Comparison for 5 Tokens</h2>
+    <p>
+      <strong>Dual Liquidity Pools:</strong>
+      To provide liquidity for tokens A, B, C, D, and E using dual pools you create one pool for every pair:<br>
+      Pools: A–B, A–C, A–D, A–E, B–C, B–D, B–E, C–D, C–E, D–E.
+      Each pool requires a deposit of 1000 tokens for each token in that pool (i.e. \$2000 per pool).
+      Funding all 10 pools requires a total capital of \$20,000.
+    </p>
+    <div class="chart-container">
+      <canvas id="dualChart"></canvas>
+    </div>
+
+    <p>
+      <strong>Multicoin Liquidity Pool:</strong>
+      In a multicoin pool you deposit 1000 tokens each for A, B, C, D, and E in one pool,
+      requiring a total capital of \$5000.
+    </p>
+    <div class="chart-container">
+      <canvas id="multiChart"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // ----- Dual Liquidity Pools -----
+    // We have 10 pools: A–B, A–C, A–D, A–E, B–C, B–D, B–E, C–D, C–E, D–E.
+    // Each pool deposit: 1000 tokens for each asset in the pair.
+    // Create arrays for each token deposit across 10 pools.
+    const dualLabels = [
+      "Pool A–B", "Pool A–C", "Pool A–D", "Pool A–E",
+      "Pool B–C", "Pool B–D", "Pool B–E",
+      "Pool C–D", "Pool C–E", "Pool D–E"
+    ];
+
+    // Token A appears in pools: A–B, A–C, A–D, A–E.
+    const dualDataTokenA = [1000, 1000, 1000, 1000, 0, 0, 0, 0, 0, 0];
+    // Token B appears in pools: A–B, B–C, B–D, B–E.
+    const dualDataTokenB = [1000, 0, 0, 0, 1000, 1000, 1000, 0, 0, 0];
+    // Token C appears in pools: A–C, B–C, C–D, C–E.
+    const dualDataTokenC = [0, 1000, 0, 0, 1000, 0, 0, 1000, 1000, 0];
+    // Token D appears in pools: A–D, B–D, C–D, D–E.
+    const dualDataTokenD = [0, 0, 1000, 0, 0, 1000, 0, 1000, 0, 1000];
+    // Token E appears in pools: A–E, B–E, C–E, D–E.
+    const dualDataTokenE = [0, 0, 0, 1000, 0, 0, 1000, 0, 1000, 1000];
+
+    const ctxDual = document.getElementById('dualChart').getContext('2d');
+    const dualChart = new Chart(ctxDual, {
+      type: 'bar',
+      data: {
+        labels: dualLabels,
+        datasets: [
+          {
+            label: 'Token A ($1000)',
+            data: dualDataTokenA,
+            backgroundColor: 'rgba(54, 162, 235, 0.7)'
+          },
+          {
+            label: 'Token B ($1000)',
+            data: dualDataTokenB,
+            backgroundColor: 'rgba(255, 99, 132, 0.7)'
+          },
+          {
+            label: 'Token C ($1000)',
+            data: dualDataTokenC,
+            backgroundColor: 'rgba(255, 205, 86, 0.7)'
+          },
+          {
+            label: 'Token D ($1000)',
+            data: dualDataTokenD,
+            backgroundColor: 'rgba(75, 192, 192, 0.7)'
+          },
+          {
+            label: 'Token E ($1000)',
+            data: dualDataTokenE,
+            backgroundColor: 'rgba(153, 102, 255, 0.7)'
+          }
+        ]
+      },
+      options: {
+        plugins: {
+          title: {
+            display: true,
+            text: 'Dual Liquidity Pools Capital Requirement (Total USD: $20,000)'
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.dataset.label + ": $" + context.raw;
+              }
+            }
+          }
+        },
+        responsive: true,
+        scales: {
+          x: {
+            stacked: true,
+            title: {
+              display: true,
+              text: 'Dual Liquidity Pools'
+            }
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Capital (USD)'
+            }
+          }
+        }
+      }
+    });
+
+    // ----- Multicoin Liquidity Pool -----
+    // For a multicoin pool, you deposit 1000 tokens each for A, B, C, D, and E in one pool.
+    const multiLabels = ["Multicoin Pool (A, B, C, D, E)"];
+    const multiDataTokenA = [1000];
+    const multiDataTokenB = [1000];
+    const multiDataTokenC = [1000];
+    const multiDataTokenD = [1000];
+    const multiDataTokenE = [1000];
+
+    const ctxMulti = document.getElementById('multiChart').getContext('2d');
+    const multiChart = new Chart(ctxMulti, {
+      type: 'bar',
+      data: {
+        labels: multiLabels,
+        datasets: [
+          {
+            label: 'Token A ($1000)',
+            data: multiDataTokenA,
+            backgroundColor: 'rgba(54, 162, 235, 0.7)'
+          },
+          {
+            label: 'Token B ($1000)',
+            data: multiDataTokenB,
+            backgroundColor: 'rgba(255, 99, 132, 0.7)'
+          },
+          {
+            label: 'Token C ($1000)',
+            data: multiDataTokenC,
+            backgroundColor: 'rgba(255, 205, 86, 0.7)'
+          },
+          {
+            label: 'Token D ($1000)',
+            data: multiDataTokenD,
+            backgroundColor: 'rgba(75, 192, 192, 0.7)'
+          },
+          {
+            label: 'Token E ($1000)',
+            data: multiDataTokenE,
+            backgroundColor: 'rgba(153, 102, 255, 0.7)'
+          }
+        ]
+      },
+      options: {
+        plugins: {
+          title: {
+            display: true,
+            text: 'Multicoin Liquidity Pool Capital Requirement (Total USD: $5000)'
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.dataset.label + ": $" + context.raw;
+              }
+            }
+          }
+        },
+        responsive: true,
+        scales: {
+          x: {
+            stacked: true,
+            title: {
+              display: true,
+              text: 'Multicoin Pool'
+            }
+          },
+          y: {
+            stacked: true,
+            beginAtZero: true,
+            title: {
+              display: true,
+              text: 'Capital (USD)'
+            }
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
