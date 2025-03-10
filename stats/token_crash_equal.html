@@ -73,6 +73,12 @@
       <h3>Multicoin Liquidity Pool (3-token)</h3>
       <canvas id="chartMulti"></canvas>
     </div>
+
+    <!-- New Chart for USD Capital Retained Comparison -->
+    <div class="chart-container">
+      <h3>USD Capital Retained Post Crash</h3>
+      <canvas id="chartUSD"></canvas>
+    </div>
   </div>
 
   <script>
@@ -187,6 +193,54 @@
           },
           y: {
             title: { display: true, text: 'Token Balance' }
+          }
+        }
+      }
+    });
+
+    // Calculate USD value for Standard pool: total USD value = 300 * √p.
+    const standardUSD = pValues.map(p => 300 * Math.sqrt(p));
+
+    // Calculate USD value for Multicoin pool: total USD value = 300 * (p^(1/3)).
+    const multiUSD = pValues.map(p => 300 * Math.pow(p, 1/3));
+
+    // Create the USD Capital Retained chart
+    const ctxUSD = document.getElementById('chartUSD').getContext('2d');
+    const chartUSD = new Chart(ctxUSD, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Standard Pool USD',
+            data: standardUSD,
+            borderColor: 'rgba(54, 162, 235, 0.7)',
+            fill: false,
+            tension: 0.1
+          },
+          {
+            label: 'Multicoin Pool USD',
+            data: multiUSD,
+            borderColor: 'rgba(255, 99, 132, 0.7)',
+            fill: false,
+            tension: 0.1
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: 'Comparison of USD Capital Retained Post Crash'
+          }
+        },
+        scales: {
+          x: {
+            title: { display: true, text: 'Crash Severity' }
+          },
+          y: {
+            title: { display: true, text: 'USD Capital Retained' }
           }
         }
       }
