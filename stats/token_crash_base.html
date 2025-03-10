@@ -9,6 +9,27 @@
     body {
       font-family: Arial, sans-serif;
       margin: 20px;
+      background-color: #fff; /* Assuming a white background */
+    }
+    /* Navigation bar styled as inline buttons */
+    .navbar {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .navbar a {
+      display: inline-block;
+      margin: 0 5px;
+      padding: 10px 15px;
+      text-decoration: none;
+      color: #333;
+      background-color: #f0f0f0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 16px;
+      transition: background-color 0.3s;
+    }
+    .navbar a:hover {
+      background-color: #ddd;
     }
     /* Central container for all content */
     .container {
@@ -24,6 +45,20 @@
   </style>
 </head>
 <body>
+  <!-- Navigation Bar -->
+  <div class="navbar">
+    <a href="token_slippage.html">Slippage</a>
+    <a href="token_crash_base.html">Crash</a>
+    <a href="token_hop.html">Hop</a>
+    <a href="token_hop_one.html">Hop Pool</a>
+    <a href="token_mev.html">MEV</a>
+    <a href="token_crash_equal.html">Crash Adj</a>
+    <a href="captial_manage.html">Capital (3)</a>
+    <a href="captial_manage_4.html">Capital (4)</a>
+    <a href="captial_manage_5.html">Capital (5)</a>
+    <a href="captial_manage_6.html">Capital (6)</a>
+    <a href="captial_manage_comparison.html">$ Comparison</a>
+  </div>
   <div class="container">
     <h2>Liquidity Pool Balances and Total USD Value After Token A Crash</h2>
     <p>This demonstration shows how token balances change as Token A’s market price crashes. The x‑axis labels include the crash severity (e.g. "50% crash") and, on the line below, the total USD value of the pool (assuming all tokens initially valued at $1, with only Token A dropping in value).</p>
@@ -38,6 +73,12 @@
     <div class="chart-container">
       <h3>Multicoin Liquidity Pool (3-token)</h3>
       <canvas id="chartMulti"></canvas>
+    </div>
+
+    <!-- New Capital Retained Comparison Chart -->
+    <div class="chart-container">
+      <h3>Capital Retained Post Crash (USD)</h3>
+      <canvas id="chartCapital"></canvas>
     </div>
   </div>
 
@@ -152,6 +193,63 @@
           },
           y: {
             title: { display: true, text: 'Token Balance' }
+          }
+        }
+      }
+    });
+
+    // ----- Create Capital Retained Comparison Chart (Line chart) -----
+    // Calculate total USD value for each pool using the formulas in the x-axis callbacks.
+    const standardUSD = pValues.map(p => 200 * Math.sqrt(p));
+    const multiUSD = pValues.map(p => 300 * Math.pow(p, 1/3));
+
+    const ctxCapital = document.getElementById('chartCapital').getContext('2d');
+    const chartCapital = new Chart(ctxCapital, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Standard Pool Capital (USD)',
+            data: standardUSD,
+            borderColor: 'rgba(54, 162, 235, 1)',
+            backgroundColor: 'rgba(54, 162, 235, 0.3)',
+            tension: 0.2,
+            fill: false,
+            pointRadius: 4
+          },
+          {
+            label: 'Multicoin Pool Capital (USD)',
+            data: multiUSD,
+            borderColor: 'rgba(255, 99, 132, 1)',
+            backgroundColor: 'rgba(255, 99, 132, 0.3)',
+            tension: 0.2,
+            fill: false,
+            pointRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: 'Capital Retained Post Crash (USD)'
+          }
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Crash Severity'
+            }
+          },
+          y: {
+            title: {
+              display: true,
+              text: 'Total USD Value'
+            },
+            beginAtZero: true
           }
         }
       }

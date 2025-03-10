@@ -15,6 +15,26 @@
       margin: 0 auto;
       text-align: center;
     }
+    /* Navigation bar styled as inline buttons */
+    .navbar {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .navbar a {
+      display: inline-block;
+      margin: 0 5px;
+      padding: 10px 15px;
+      text-decoration: none;
+      color: #333;
+      background-color: #f0f0f0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 16px;
+      transition: background-color 0.3s;
+    }
+    .navbar a:hover {
+      background-color: #ddd;
+    }
     .chart-container {
       width: 950px;
       margin: 0 auto 50px;
@@ -22,6 +42,19 @@
   </style>
 </head>
 <body>
+  <div class="navbar">
+    <a href="token_slippage.html">Slippage</a>
+    <a href="token_crash_base.html">Crash</a>
+    <a href="token_hop.html">Hop</a>
+    <a href="token_hop_one.html">Hop Pool</a>
+    <a href="token_mev.html">MEV</a>
+    <a href="token_crash_equal.html">Crash Adj</a>
+    <a href="captial_manage.html">Capital (3)</a>
+    <a href="captial_manage_4.html">Capital (4)</a>
+    <a href="captial_manage_5.html">Capital (5)</a>
+    <a href="captial_manage_6.html">Capital (6)</a>
+    <a href="captial_manage_comparison.html">$ Comparison</a>
+  </div>
   <div class="container">
     <h2>Swap Slippage Simulation: Dual vs Multicoin Liquidity Pools</h2>
     <p>
@@ -41,6 +74,12 @@
     <div class="chart-container">
       <h3>Multicoin Liquidity Pool</h3>
       <canvas id="multiChart"></canvas>
+    </div>
+
+    <!-- New Slippage Comparison Chart -->
+    <div class="chart-container">
+      <h3>Slippage Comparison: Dual vs Multicoin Pools</h3>
+      <canvas id="comparisonChart"></canvas>
     </div>
   </div>
 
@@ -242,6 +281,60 @@
             },
             grid: {
               drawOnChartArea: false,
+            },
+            beginAtZero: true
+          }
+        }
+      }
+    });
+
+    // ----- Create Slippage Comparison Chart (Line chart comparing both slippage lines) -----
+    const ctxComparison = document.getElementById('comparisonChart').getContext('2d');
+    const comparisonChart = new Chart(ctxComparison, {
+      type: 'line',
+      data: {
+        labels: swapAmounts.map(x => x.toString()),
+        datasets: [
+          {
+            label: 'Dual Pool Slippage %',
+            data: dualSlippage,
+            borderColor: 'rgba(75, 192, 192, 1)',
+            backgroundColor: 'rgba(75, 192, 192, 0.3)',
+            tension: 0.2,
+            fill: false,
+            pointRadius: 4,
+          },
+          {
+            label: 'Multicoin Pool Slippage %',
+            data: multiSlippage,
+            borderColor: 'rgba(255, 159, 64, 1)',
+            backgroundColor: 'rgba(255, 159, 64, 0.3)',
+            tension: 0.2,
+            fill: false,
+            pointRadius: 4,
+          },
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: 'Slippage Comparison: Dual vs Multicoin Pools'
+          },
+        },
+        scales: {
+          x: {
+            title: {
+              display: true,
+              text: 'Token A Swap Amount'
+            }
+          },
+          y: {
+            type: 'linear',
+            title: {
+              display: true,
+              text: 'Slippage (%)'
             },
             beginAtZero: true
           }

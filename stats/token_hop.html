@@ -6,12 +6,46 @@
   <!-- Include Chart.js from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    /* Navigation bar styled as inline buttons */
+    .navbar {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .navbar a {
+      display: inline-block;
+      margin: 0 5px;
+      padding: 10px 15px;
+      text-decoration: none;
+      color: #333;
+      background-color: #f0f0f0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 16px;
+      transition: background-color 0.3s;
+    }
+    .navbar a:hover {
+      background-color: #ddd;
+    }
     body { font-family: Arial, sans-serif; margin: 20px; }
     .container { max-width: 1000px; margin: 0 auto; text-align: center; }
     .chart-container { width: 950px; margin: 0 auto 50px; }
   </style>
 </head>
 <body>
+  <!-- Navigation Bar -->
+  <div class="navbar">
+    <a href="token_slippage.html">Slippage</a>
+    <a href="token_crash_base.html">Crash</a>
+    <a href="token_hop.html">Hop</a>
+    <a href="token_hop_one.html">Hop Pool</a>
+    <a href="token_mev.html">MEV</a>
+    <a href="token_crash_equal.html">Crash Adj</a>
+    <a href="captial_manage.html">Capital (3)</a>
+    <a href="captial_manage_4.html">Capital (4)</a>
+    <a href="captial_manage_5.html">Capital (5)</a>
+    <a href="captial_manage_6.html">Capital (6)</a>
+    <a href="captial_manage_comparison.html">$ Comparison</a>
+  </div>
   <div class="container">
     <h2>Transaction Costs Simulation (Swap Fees)</h2>
     <p>
