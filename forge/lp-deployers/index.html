@@ -235,7 +235,7 @@
       status.innerText = "Adding liquidity…";
       await pool.methods
               .addLiquidity(amounts)
-              .send({ ...txOpts, gas: 300_000 });
+              .send({ ...txOpts, gas: 900_000 });
 
       // 7) Done!
       status.innerText = `MultiPool deployed & funded at ${poolAddr} 🎉`;

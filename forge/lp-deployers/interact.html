@@ -10,31 +10,25 @@
             max-width: 600px;
             margin: 1em auto;
         }
-
         label, select, input, button {
             display: block;
             margin: 0.5em 0;
         }
-
         button {
             padding: 0.4em 0.8em;
         }
-
         #newBalance, #poolReserves {
             font-weight: bold;
         }
-
-        /* add into your existing <style> */
         .navbar {
-            background: #f9f9f9; /* light gray to blend with white page */
+            background: #f9f9f9;
             padding: 0.5em 1em;
             display: flex;
             gap: 0.5em;
             border-bottom: 1px solid #ddd;
         }
-
         .nav-button {
-            background: #fff; /* white button */
+            background: #fff;
             color: #333;
             border: 1px solid #ccc;
             border-radius: 4px;
@@ -42,16 +36,14 @@
             cursor: pointer;
             font-size: 1em;
         }
-
         .nav-button:hover {
             background: #f0f0f0;
         }
-
-
     </style>
 </head>
 <body>
-<!-- put this at the top of <body> -->
+
+<!-- Navigation Bar -->
 <div class="navbar">
     <button class="nav-button" onclick="window.location.href='index.html'">
         Mint LP Pools
@@ -60,7 +52,6 @@
         Interact / Swap
     </button>
 </div>
-
 
 <h1>Pool Interaction</h1>
 
@@ -87,10 +78,10 @@
 </ul>
 
 <script>
-    // --- setup web3 & account
+    // --- web3 & account setup
     if (window.ethereum) {
         window.web3 = new Web3(window.ethereum);
-        window.ethereum.request({method: 'eth_requestAccounts'});
+        window.ethereum.request({ method: 'eth_requestAccounts' });
     } else {
         window.web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
     }
@@ -99,52 +90,14 @@
 
     // --- ABIs
     const erc20Abi = [
-        // approve
-        {
-            name: "approve", type: "function",
-            inputs: [
-                {name: "_spender", type: "address"},
-                {name: "_value", type: "uint256"}
-            ],
-            outputs: [{name: "", type: "bool"}],
-            stateMutability: "nonpayable"
-        },
-        // balanceOf
-        {
-            name: "balanceOf", type: "function",
-            inputs: [{name: "_owner", type: "address"}],
-            outputs: [{name: "balance", type: "uint256"}],
-            stateMutability: "view"
-        }
+        { name: "approve", type: "function", inputs: [{name:"_spender", type:"address"},{name:"_value", type:"uint256"}], outputs:[{name:"",type:"bool"}], stateMutability:"nonpayable" },
+        { name: "balanceOf", type: "function", inputs: [{name:"_owner",type:"address"}], outputs:[{name:"balance",type:"uint256"}], stateMutability:"view" }
     ];
-    const dualSwapAbi = [{
-        name: "swap", type: "function",
-        inputs: [
-            {name: "tokenIn", type: "address"},
-            {name: "amountIn", type: "uint256"}
-        ],
-        stateMutability: "nonpayable"
-    }];
-    const multiSwapAbi = [{
-        name: "swap", type: "function",
-        inputs: [
-            {name: "tokenIn", type: "address"},
-            {name: "amountIn", type: "uint256"},
-            {name: "tokenOut", type: "address"}
-        ],
-        stateMutability: "nonpayable"
-    }];
-    const poolAbi = [{
-        name: "getReserves", type: "function",
-        inputs: [],
-        outputs: [
-            {name: "reserve0", type: "uint256"},
-            {name: "reserve1", type: "uint256"}
-        ],
-        stateMutability: "view"
-    }];
+    const dualSwapAbi  = [{ name: "swap", type: "function", inputs: [{name:"tokenIn",type:"address"},{name:"amountIn",type:"uint256"}], stateMutability:"nonpayable" }];
+    const multiSwapAbi = [{ name: "swap", type: "function", inputs: [{name:"tokenIn",type:"address"},{name:"amountIn",type:"uint256"},{name:"tokenOut",type:"address"}], stateMutability:"nonpayable" }];
+    const poolAbi      = [{ name: "getReserves", type: "function", inputs: [], outputs: [{name:"reserve0",type:"uint256"},{name:"reserve1",type:"uint256"}], stateMutability:"view" }];
 
-    // --- load pools
+    // --- load saved pools
     const poolSelect = document.getElementById('poolSelect');
     const pools = [];
     Object.keys(localStorage).forEach(k => {
@@ -152,17 +105,15 @@
             const data = JSON.parse(localStorage.getItem(k));
             const addr = k.split('_')[1];
             const type = k.startsWith('dualPool_') ? 'Dual' : 'Multi';
-            const tokens = type === 'Dual' ? [data.tokenA, data.tokenB] : data.tokens;
-            pools.push({type, address: addr, tokens});
-            const opt = new Option(`${type} @ ${addr}`, pools.length - 1);
-            poolSelect.appendChild(opt);
+            const tokens = type === 'Dual' ? [ data.tokenA, data.tokenB ] : data.tokens;
+            pools.push({ type, address: addr, tokens });
+            poolSelect.appendChild(new Option(`${type} @ ${addr}`, pools.length-1));
         }
     });
 
-    // --- rebuild token selects on change
-    const tokenIn = document.getElementById('tokenIn');
+    // --- token selectors
+    const tokenIn  = document.getElementById('tokenIn');
     const tokenOut = document.getElementById('tokenOut');
-
     function refreshTokens() {
         const p = pools[poolSelect.value];
         tokenIn.innerHTML = '';
@@ -173,87 +124,93 @@
         });
         tokenOut.disabled = p.type !== 'Multi';
     }
-
     poolSelect.addEventListener('change', refreshTokens);
     if (pools.length) refreshTokens();
 
-    // --- debug & display new balance
+    // --- display new wallet balance
     async function displayNewBalance(tokenAddr) {
-        console.log('→ displayNewBalance()', tokenAddr, 'for account', account);
         const tC = new web3.eth.Contract(erc20Abi, tokenAddr);
         try {
             const bal = await tC.methods.balanceOf(account).call();
-            console.log('   balanceOf →', bal);
             document.getElementById('newBalance').innerText =
                 `${web3.utils.fromWei(bal, 'ether')} tokens`;
-        } catch (err) {
-            console.error('   🛑 balanceOf error:', err);
-            document.getElementById('newBalance').innerText =
-                'Error fetching balance';
+        } catch {
+            document.getElementById('newBalance').innerText = 'Error fetching balance';
         }
     }
 
-    // --- debug & display reserves (dual only)
-    async function displayReserves(poolAddr) {
-        console.log('→ displayReserves()', poolAddr);
-        const pC = new web3.eth.Contract(poolAbi, poolAddr);
-        try {
-            const {reserve0, reserve1} = await pC.methods.getReserves().call();
-            console.log('   getReserves →', reserve0, reserve1);
-            const ul = document.getElementById('poolReserves');
-            ul.innerHTML = '';
-            ul.appendChild(Object.assign(document.createElement('li'), {
-                innerText: `Reserve 0: ${web3.utils.fromWei(reserve0, 'ether')}`
-            }));
-            ul.appendChild(Object.assign(document.createElement('li'), {
-                innerText: `Reserve 1: ${web3.utils.fromWei(reserve1, 'ether')}`
-            }));
-        } catch (err) {
-            console.error('   🛑 getReserves error:', err);
-            document.getElementById('poolReserves').innerHTML =
-                '<li>Unable to fetch reserves</li>';
+    // --- display pool reserves
+    async function displayReserves(pool) {
+        const ul = document.getElementById('poolReserves');
+        ul.innerHTML = '';
+
+        if (pool.type === 'Dual') {
+            // Dual: call getReserves()
+            const pC = new web3.eth.Contract(poolAbi, pool.address);
+            try {
+                const {reserve0, reserve1} = await pC.methods.getReserves().call();
+                ul.appendChild(Object.assign(document.createElement('li'), {
+                    innerText: `Reserve 0: ${web3.utils.fromWei(reserve0, 'ether')}`
+                }));
+                ul.appendChild(Object.assign(document.createElement('li'), {
+                    innerText: `Reserve 1: ${web3.utils.fromWei(reserve1, 'ether')}`
+                }));
+            } catch {
+                ul.appendChild(Object.assign(document.createElement('li'), {
+                    innerText: 'Unable to fetch Dual reserves'
+                }));
+            }
+        } else {
+            // Multi: for each token, check ERC20 balance of pool address
+            for (const tokenAddr of pool.tokens) {
+                const tC = new web3.eth.Contract(erc20Abi, tokenAddr);
+                try {
+                    const bal = await tC.methods.balanceOf(pool.address).call();
+                    ul.appendChild(Object.assign(document.createElement('li'), {
+                        innerText: `${tokenAddr.slice(0,6)}…: ${web3.utils.fromWei(bal, 'ether')}`
+                    }));
+                } catch {
+                    ul.appendChild(Object.assign(document.createElement('li'), {
+                        innerText: `Error fetching reserve for ${tokenAddr}`
+                    }));
+                }
+            }
         }
     }
 
-    // --- swap button
+    // --- swap workflow
     document.getElementById('swapBtn').onclick = async () => {
         const p = pools[poolSelect.value];
-        const inAddr = tokenIn.value;
-        const outAddr = p.type === 'Multi' ? tokenOut.value : null;
-        const raw = document.getElementById('amountIn').value;
-        if (!raw || !inAddr || (p.type === 'Multi' && !outAddr)) {
+        const inAddr  = tokenIn.value;
+        const outAddr = p.type === 'Multi' ? tokenOut.value : inAddr;
+        const raw     = document.getElementById('amountIn').value;
+        if (!raw || !inAddr || (p.type==='Multi' && !tokenOut.value)) {
             return alert('Fill all fields');
         }
 
         const opts = {
             from: account,
-            maxPriorityFeePerGas: web3.utils.toWei('1', 'gwei'),
-            maxFeePerGas: web3.utils.toWei('2', 'gwei')
+            maxPriorityFeePerGas: web3.utils.toWei('1','gwei'),
+            maxFeePerGas:        web3.utils.toWei('2','gwei')
         };
         const amtWei = web3.utils.toWei(raw, 'ether');
 
         // approve
-        console.log('→ approving', inAddr, '@', p.address, amtWei);
         const appC = new web3.eth.Contract(erc20Abi, inAddr);
         await appC.methods.approve(p.address, amtWei).send(opts);
 
         // swap
-        console.log('→ swapping on', p.address);
-        const swapC = new web3.eth.Contract(
-            p.type === 'Dual' ? dualSwapAbi : multiSwapAbi,
-            p.address
-        );
+        const swapAbi = p.type==='Dual' ? dualSwapAbi : multiSwapAbi;
+        const swapC = new web3.eth.Contract(swapAbi, p.address);
         if (p.type === 'Dual') {
             await swapC.methods.swap(inAddr, amtWei).send(opts);
         } else {
-            await swapC.methods.swap(inAddr, amtWei, outAddr).send(opts);
+            await swapC.methods.swap(inAddr, amtWei, tokenOut.value).send(opts);
         }
 
         document.getElementById('status').innerText = 'Swap complete 🎉';
-
-        // fetch & show
-        await displayNewBalance(outAddr || inAddr);
-        await displayReserves(p.address);
+        await displayNewBalance(outAddr);
+        await displayReserves(p);
     };
 </script>
 </body>
