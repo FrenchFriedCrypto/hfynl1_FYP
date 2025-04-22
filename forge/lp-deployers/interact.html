@@ -1,22 +1,71 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8"/>
     <title>Interact with Pool</title>
     <script src="https://cdn.jsdelivr.net/npm/web3@1.8.2/dist/web3.min.js"></script>
     <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 1em auto; }
-        label, select, input, button { display: block; margin: 0.5em 0; }
-        button { padding: 0.4em 0.8em; }
+        body {
+            font-family: sans-serif;
+            max-width: 600px;
+            margin: 1em auto;
+        }
+
+        label, select, input, button {
+            display: block;
+            margin: 0.5em 0;
+        }
+
+        button {
+            padding: 0.4em 0.8em;
+        }
+
+        #newBalance, #poolReserves {
+            font-weight: bold;
+        }
+
+        /* add into your existing <style> */
+        .navbar {
+            background: #f9f9f9; /* light gray to blend with white page */
+            padding: 0.5em 1em;
+            display: flex;
+            gap: 0.5em;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .nav-button {
+            background: #fff; /* white button */
+            color: #333;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 0.5em 1em;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        .nav-button:hover {
+            background: #f0f0f0;
+        }
+
+
     </style>
 </head>
 <body>
+<!-- put this at the top of <body> -->
+<div class="navbar">
+    <button class="nav-button" onclick="window.location.href='index.html'">
+        Mint LP Pools
+    </button>
+    <button class="nav-button" onclick="window.location.href='interact.html'">
+        Interact / Swap
+    </button>
+</div>
+
+
 <h1>Pool Interaction</h1>
 
 <label for="poolSelect">Choose Pool:</label>
 <select id="poolSelect"></select>
-
-<div id="poolDetails"></div>
 
 <label for="tokenIn">Token In:</label>
 <select id="tokenIn"></select>
@@ -25,123 +74,186 @@
 <select id="tokenOut"></select>
 
 <label for="amountIn">Amount In:</label>
-<input type="number" id="amountIn" placeholder="e.g. 1.5" />
+<input id="amountIn" placeholder="e.g. 1.5" type="number"/>
 
 <button id="swapBtn">Approve & Swap</button>
 <p id="status"></p>
 
+<h3>Swap Results</h3>
+<p>New Balance: <span id="newBalance">—</span></p>
+<p>Pool Reserves:</p>
+<ul id="poolReserves">
+    <li>—</li>
+</ul>
+
 <script>
-    // Web3 provider
+    // --- setup web3 & account
     if (window.ethereum) {
         window.web3 = new Web3(window.ethereum);
-        window.ethereum.request({ method: 'eth_requestAccounts' });
+        window.ethereum.request({method: 'eth_requestAccounts'});
     } else {
         window.web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
     }
     let account;
-    web3.eth.getAccounts().then(a=>account=a[0]);
+    web3.eth.getAccounts().then(a => account = a[0]);
 
-    // Minimal ABIs
-    const erc20Abi = [{
-        name: "approve", type: "function",
-        inputs: [
-            { name: "_spender", type: "address" },
-            { name: "_value",   type: "uint256" }
-        ],
-        outputs: [{ name: "", type: "bool" }],
-        stateMutability: "nonpayable"
-    }];
+    // --- ABIs
+    const erc20Abi = [
+        // approve
+        {
+            name: "approve", type: "function",
+            inputs: [
+                {name: "_spender", type: "address"},
+                {name: "_value", type: "uint256"}
+            ],
+            outputs: [{name: "", type: "bool"}],
+            stateMutability: "nonpayable"
+        },
+        // balanceOf
+        {
+            name: "balanceOf", type: "function",
+            inputs: [{name: "_owner", type: "address"}],
+            outputs: [{name: "balance", type: "uint256"}],
+            stateMutability: "view"
+        }
+    ];
     const dualSwapAbi = [{
         name: "swap", type: "function",
         inputs: [
-            { name: "tokenIn",  type: "address" },
-            { name: "amountIn", type: "uint256" }
+            {name: "tokenIn", type: "address"},
+            {name: "amountIn", type: "uint256"}
         ],
         stateMutability: "nonpayable"
     }];
     const multiSwapAbi = [{
         name: "swap", type: "function",
         inputs: [
-            { name: "tokenIn",  type: "address" },
-            { name: "amountIn", type: "uint256" },
-            { name: "tokenOut", type: "address" }
+            {name: "tokenIn", type: "address"},
+            {name: "amountIn", type: "uint256"},
+            {name: "tokenOut", type: "address"}
         ],
         stateMutability: "nonpayable"
     }];
+    const poolAbi = [{
+        name: "getReserves", type: "function",
+        inputs: [],
+        outputs: [
+            {name: "reserve0", type: "uint256"},
+            {name: "reserve1", type: "uint256"}
+        ],
+        stateMutability: "view"
+    }];
 
-    // Load pools into dropdown
+    // --- load pools
     const poolSelect = document.getElementById('poolSelect');
     const pools = [];
-    Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('dualPool_') || key.startsWith('multiPool_')) {
-            const data    = JSON.parse(localStorage.getItem(key));
-            const address = key.split('_')[1];
-            const type    = key.startsWith('dualPool_') ? 'Dual' : 'Multi';
-            const tokens  = type==='Dual' ? [data.tokenA, data.tokenB] : data.tokens;
-            pools.push({ type, address, tokens });
-            const opt = document.createElement('option');
-            opt.value = pools.length - 1;
-            opt.text  = `${type} @ ${address}`;
+    Object.keys(localStorage).forEach(k => {
+        if (k.startsWith('dualPool_') || k.startsWith('multiPool_')) {
+            const data = JSON.parse(localStorage.getItem(k));
+            const addr = k.split('_')[1];
+            const type = k.startsWith('dualPool_') ? 'Dual' : 'Multi';
+            const tokens = type === 'Dual' ? [data.tokenA, data.tokenB] : data.tokens;
+            pools.push({type, address: addr, tokens});
+            const opt = new Option(`${type} @ ${addr}`, pools.length - 1);
             poolSelect.appendChild(opt);
         }
     });
 
-    // On pool change: rebuild token selects
-    const tokenIn  = document.getElementById('tokenIn');
+    // --- rebuild token selects on change
+    const tokenIn = document.getElementById('tokenIn');
     const tokenOut = document.getElementById('tokenOut');
+
     function refreshTokens() {
         const p = pools[poolSelect.value];
         tokenIn.innerHTML = '';
-        tokenOut.innerHTML= '';
-        p.tokens.forEach(addr=>{
-            const o1 = new Option(addr, addr);
-            tokenIn.add(o1);
-            if(p.type==='Multi'){
-                const o2 = new Option(addr, addr);
-                tokenOut.add(o2);
-            }
+        tokenOut.innerHTML = '';
+        p.tokens.forEach(t => {
+            tokenIn.add(new Option(t, t));
+            if (p.type === 'Multi') tokenOut.add(new Option(t, t));
         });
+        tokenOut.disabled = p.type !== 'Multi';
     }
-    poolSelect.addEventListener('change', refreshTokens);
-    if(pools.length) refreshTokens();
 
-    // Swap logic
+    poolSelect.addEventListener('change', refreshTokens);
+    if (pools.length) refreshTokens();
+
+    // --- debug & display new balance
+    async function displayNewBalance(tokenAddr) {
+        console.log('→ displayNewBalance()', tokenAddr, 'for account', account);
+        const tC = new web3.eth.Contract(erc20Abi, tokenAddr);
+        try {
+            const bal = await tC.methods.balanceOf(account).call();
+            console.log('   balanceOf →', bal);
+            document.getElementById('newBalance').innerText =
+                `${web3.utils.fromWei(bal, 'ether')} tokens`;
+        } catch (err) {
+            console.error('   🛑 balanceOf error:', err);
+            document.getElementById('newBalance').innerText =
+                'Error fetching balance';
+        }
+    }
+
+    // --- debug & display reserves (dual only)
+    async function displayReserves(poolAddr) {
+        console.log('→ displayReserves()', poolAddr);
+        const pC = new web3.eth.Contract(poolAbi, poolAddr);
+        try {
+            const {reserve0, reserve1} = await pC.methods.getReserves().call();
+            console.log('   getReserves →', reserve0, reserve1);
+            const ul = document.getElementById('poolReserves');
+            ul.innerHTML = '';
+            ul.appendChild(Object.assign(document.createElement('li'), {
+                innerText: `Reserve 0: ${web3.utils.fromWei(reserve0, 'ether')}`
+            }));
+            ul.appendChild(Object.assign(document.createElement('li'), {
+                innerText: `Reserve 1: ${web3.utils.fromWei(reserve1, 'ether')}`
+            }));
+        } catch (err) {
+            console.error('   🛑 getReserves error:', err);
+            document.getElementById('poolReserves').innerHTML =
+                '<li>Unable to fetch reserves</li>';
+        }
+    }
+
+    // --- swap button
     document.getElementById('swapBtn').onclick = async () => {
-        const idx   = poolSelect.value;
-        const p     = pools[idx];
-        const inAddr= tokenIn.value;
-        const outAddr = p.type==='Multi' ? tokenOut.value : null;
-        const amtRaw = document.getElementById('amountIn').value;
-        if (!amtRaw || !inAddr || (p.type==='Multi' && !outAddr)) {
-            alert('Fill all fields');
-            return;
+        const p = pools[poolSelect.value];
+        const inAddr = tokenIn.value;
+        const outAddr = p.type === 'Multi' ? tokenOut.value : null;
+        const raw = document.getElementById('amountIn').value;
+        if (!raw || !inAddr || (p.type === 'Multi' && !outAddr)) {
+            return alert('Fill all fields');
         }
 
-        const feeOpts = {
+        const opts = {
             from: account,
-            maxPriorityFeePerGas: web3.utils.toWei('1','gwei'),
-            maxFeePerGas:        web3.utils.toWei('2','gwei')
+            maxPriorityFeePerGas: web3.utils.toWei('1', 'gwei'),
+            maxFeePerGas: web3.utils.toWei('2', 'gwei')
         };
-        const amountWei = web3.utils.toWei(amtRaw,'ether');
+        const amtWei = web3.utils.toWei(raw, 'ether');
 
-        // 1) Approve tokenIn
-        const tokenC = new web3.eth.Contract(erc20Abi, inAddr);
-        document.getElementById('status').innerText = 'Approving token…';
-        await tokenC.methods.approve(p.address, amountWei).send(feeOpts);
+        // approve
+        console.log('→ approving', inAddr, '@', p.address, amtWei);
+        const appC = new web3.eth.Contract(erc20Abi, inAddr);
+        await appC.methods.approve(p.address, amtWei).send(opts);
 
-        // 2) Call swap
-        document.getElementById('status').innerText = 'Swapping…';
-        const poolC = new web3.eth.Contract(
-            p.type==='Dual' ? dualSwapAbi : multiSwapAbi,
+        // swap
+        console.log('→ swapping on', p.address);
+        const swapC = new web3.eth.Contract(
+            p.type === 'Dual' ? dualSwapAbi : multiSwapAbi,
             p.address
         );
-        if(p.type==='Dual') {
-            await poolC.methods.swap(inAddr, amountWei).send(feeOpts);
+        if (p.type === 'Dual') {
+            await swapC.methods.swap(inAddr, amtWei).send(opts);
         } else {
-            await poolC.methods.swap(inAddr, amountWei, outAddr).send(feeOpts);
+            await swapC.methods.swap(inAddr, amtWei, outAddr).send(opts);
         }
 
         document.getElementById('status').innerText = 'Swap complete 🎉';
+
+        // fetch & show
+        await displayNewBalance(outAddr || inAddr);
+        await displayReserves(p.address);
     };
 </script>
 </body>
