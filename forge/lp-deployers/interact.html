@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>Interact with Pool</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.8.2/dist/web3.min.js"></script>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 1em auto; }
+        label, select, input, button { display: block; margin: 0.5em 0; }
+        button { padding: 0.4em 0.8em; }
+    </style>
+</head>
+<body>
+<h1>Pool Interaction</h1>
+
+<label for="poolSelect">Choose Pool:</label>
+<select id="poolSelect"></select>
+
+<div id="poolDetails"></div>
+
+<label for="tokenIn">Token In:</label>
+<select id="tokenIn"></select>
+
+<label for="tokenOut">Token Out:</label>
+<select id="tokenOut"></select>
+
+<label for="amountIn">Amount In:</label>
+<input type="number" id="amountIn" placeholder="e.g. 1.5" />
+
+<button id="swapBtn">Approve & Swap</button>
+<p id="status"></p>
+
+<script>
+    // Web3 provider
+    if (window.ethereum) {
+        window.web3 = new Web3(window.ethereum);
+        window.ethereum.request({ method: 'eth_requestAccounts' });
+    } else {
+        window.web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
+    }
+    let account;
+    web3.eth.getAccounts().then(a=>account=a[0]);
+
+    // Minimal ABIs
+    const erc20Abi = [{
+        name: "approve", type: "function",
+        inputs: [
+            { name: "_spender", type: "address" },
+            { name: "_value",   type: "uint256" }
+        ],
+        outputs: [{ name: "", type: "bool" }],
+        stateMutability: "nonpayable"
+    }];
+    const dualSwapAbi = [{
+        name: "swap", type: "function",
+        inputs: [
+            { name: "tokenIn",  type: "address" },
+            { name: "amountIn", type: "uint256" }
+        ],
+        stateMutability: "nonpayable"
+    }];
+    const multiSwapAbi = [{
+        name: "swap", type: "function",
+        inputs: [
+            { name: "tokenIn",  type: "address" },
+            { name: "amountIn", type: "uint256" },
+            { name: "tokenOut", type: "address" }
+        ],
+        stateMutability: "nonpayable"
+    }];
+
+    // Load pools into dropdown
+    const poolSelect = document.getElementById('poolSelect');
+    const pools = [];
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('dualPool_') || key.startsWith('multiPool_')) {
+            const data    = JSON.parse(localStorage.getItem(key));
+            const address = key.split('_')[1];
+            const type    = key.startsWith('dualPool_') ? 'Dual' : 'Multi';
+            const tokens  = type==='Dual' ? [data.tokenA, data.tokenB] : data.tokens;
+            pools.push({ type, address, tokens });
+            const opt = document.createElement('option');
+            opt.value = pools.length - 1;
+            opt.text  = `${type} @ ${address}`;
+            poolSelect.appendChild(opt);
+        }
+    });
+
+    // On pool change: rebuild token selects
+    const tokenIn  = document.getElementById('tokenIn');
+    const tokenOut = document.getElementById('tokenOut');
+    function refreshTokens() {
+        const p = pools[poolSelect.value];
+        tokenIn.innerHTML = '';
+        tokenOut.innerHTML= '';
+        p.tokens.forEach(addr=>{
+            const o1 = new Option(addr, addr);
+            tokenIn.add(o1);
+            if(p.type==='Multi'){
+                const o2 = new Option(addr, addr);
+                tokenOut.add(o2);
+            }
+        });
+    }
+    poolSelect.addEventListener('change', refreshTokens);
+    if(pools.length) refreshTokens();
+
+    // Swap logic
+    document.getElementById('swapBtn').onclick = async () => {
+        const idx   = poolSelect.value;
+        const p     = pools[idx];
+        const inAddr= tokenIn.value;
+        const outAddr = p.type==='Multi' ? tokenOut.value : null;
+        const amtRaw = document.getElementById('amountIn').value;
+        if (!amtRaw || !inAddr || (p.type==='Multi' && !outAddr)) {
+            alert('Fill all fields');
+            return;
+        }
+
+        const feeOpts = {
+            from: account,
+            maxPriorityFeePerGas: web3.utils.toWei('1','gwei'),
+            maxFeePerGas:        web3.utils.toWei('2','gwei')
+        };
+        const amountWei = web3.utils.toWei(amtRaw,'ether');
+
+        // 1) Approve tokenIn
+        const tokenC = new web3.eth.Contract(erc20Abi, inAddr);
+        document.getElementById('status').innerText = 'Approving token…';
+        await tokenC.methods.approve(p.address, amountWei).send(feeOpts);
+
+        // 2) Call swap
+        document.getElementById('status').innerText = 'Swapping…';
+        const poolC = new web3.eth.Contract(
+            p.type==='Dual' ? dualSwapAbi : multiSwapAbi,
+            p.address
+        );
+        if(p.type==='Dual') {
+            await poolC.methods.swap(inAddr, amountWei).send(feeOpts);
+        } else {
+            await poolC.methods.swap(inAddr, amountWei, outAddr).send(feeOpts);
+        }
+
+        document.getElementById('status').innerText = 'Swap complete 🎉';
+    };
+</script>
+</body>
+</html>

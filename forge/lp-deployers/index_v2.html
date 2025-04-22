@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <title>Pool Minter</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.8.2/dist/web3.min.js"></script>
+    <style>
+        table { border-collapse: collapse; width: 100%; margin-top: 1em; }
+        th, td { border: 1px solid #ccc; padding: 0.5em; text-align: left; }
+        th { background: #f4f4f4; }
+        button { padding: 0.3em 0.6em; }
+    </style>
+</head>
+<body>
+<h1>Mint New Pools</h1>
+
+<div style="margin-bottom:1em;">
+    <label for="multiCount">Number of tokens for Multi LP Pool (1–5):</label>
+    <input type="number" id="multiCount" min="1" max="5" value="3" />
+</div>
+
+<button id="dualBtn">Mint Dual LP Pool & Add Liquidity</button>
+<button id="multiBtn">Mint Multi‑Token LP Pool & Add Liquidity</button>
+<p id="status"></p>
+
+<h2>Deployed Pools</h2>
+<table id="poolsTable">
+    <thead>
+    <tr>
+        <th>Type</th>
+        <th>Address</th>
+        <th>Tokens</th>
+        <th>Action</th>
+    </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<script>
+    // 1) Table helpers
+    function addPoolToTable(type, address, tokens) {
+        const tbody = document.querySelector('#poolsTable tbody');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+        <td>${type}</td>
+        <td><code>${address}</code></td>
+        <td>${tokens.join(', ')}</td>
+        <td>
+          <button onclick="window.location.href='interact.html?type=${type}&address=${address}'">
+            Interact
+          </button>
+        </td>
+      `;
+        tbody.appendChild(tr);
+    }
+
+    function loadPoolsFromStorage() {
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('dualPool_') || key.startsWith('multiPool_')) {
+                const data = JSON.parse(localStorage.getItem(key));
+                const address = key.split('_')[1];
+                const type    = key.startsWith('dualPool_') ? 'Dual' : 'Multi';
+                const tokens  = type === 'Dual'
+                    ? [data.tokenA, data.tokenB]
+                    : data.tokens;
+                addPoolToTable(type, address, tokens);
+            }
+        });
+    }
+    window.addEventListener('load', loadPoolsFromStorage);
+
+    // 2) Web3 setup
+    let account;
+    if (window.ethereum) {
+        window.web3 = new Web3(window.ethereum);
+        window.ethereum.request({ method: 'eth_requestAccounts' });
+    } else {
+        window.web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
+    }
+    web3.eth.getAccounts().then(accts => account = accts[0]);
+
+    // 3) Paste your ABIs, bytecodes, predefinedTokens, debugToken here exactly as before...
+    const dualAbi      = /* … */;
+    const dualBytecode = /* … */;
+    const multiAbi     = /* … */;
+    const multiBytecode= /* … */;
+    const erc20Abi     = [ /* … */ ];
+    const infoAbi      = [ /* … */ ];
+    const predefinedTokens = [ /* … six addresses … */ ];
+    async function debugToken(token, poolAddr) { /* … */ }
+
+    const status = document.getElementById("status");
+
+    // 4) Dual deploy + table append
+    document.getElementById("dualBtn").onclick = async () => {
+        if (!account) { status.innerText = "Waiting for account…"; return; }
+        const feeOpts = {
+            from: account,
+            maxPriorityFeePerGas: web3.utils.toWei('1','gwei'),
+            maxFeePerGas:        web3.utils.toWei('2','gwei')
+        };
+
+        status.innerText = "Deploying DualPool…";
+        const [t0, t1] = predefinedTokens;
+        const amt0 = web3.utils.toWei('1500','ether'),
+            amt1 = web3.utils.toWei('1500','ether');
+
+        const ctr = new web3.eth.Contract(dualAbi);
+        const receipt = await ctr.deploy({
+            data: dualBytecode,
+            arguments: [t0, t1]
+        }).send({ from: account });
+        const poolAddr = receipt.options.address;
+        const deployedDual = new web3.eth.Contract(dualAbi, poolAddr);
+
+        // approve + addLiquidity (as before)…
+        status.innerText = `DualPool deployed at ${poolAddr} 🎉`;
+        localStorage.setItem(
+            `dualPool_${poolAddr}`,
+            JSON.stringify({ tokenA:t0, tokenB:t1 })
+        );
+        addPoolToTable('Dual', poolAddr, [t0, t1]);
+    };
+
+    // 5) Multi deploy + table append
+    document.getElementById("multiBtn").onclick = async () => {
+        if (!account) { status.innerText = "Waiting for account…"; return; }
+        const feeOpts = {
+            from: account,
+            maxPriorityFeePerGas: web3.utils.toWei('1','gwei'),
+            maxFeePerGas:        web3.utils.toWei('2','gwei')
+        };
+
+        const count  = Math.min(5, Math.max(1, +document.getElementById("multiCount").value));
+        const tokens = predefinedTokens.slice(0, count);
+        const amt    = web3.utils.toWei('1000','ether');
+        const amounts= tokens.map(() => amt);
+
+        status.innerText = "Deploying MultiPool…";
+        const ctr = new web3.eth.Contract(multiAbi);
+        const receipt = await ctr.deploy({
+            data: multiBytecode,
+            arguments: [tokens, amounts]
+        }).send({ from: account });
+        const poolAddr = receipt.options.address;
+        const deployedMulti = new web3.eth.Contract(multiAbi, poolAddr);
+
+        // approve + addLiquidity (as before)…
+        status.innerText = `MultiPool deployed at ${poolAddr} (${count}×1 000) 🎉`;
+        localStorage.setItem(
+            `multiPool_${poolAddr}`,
+            JSON.stringify({ tokens, amounts })
+        );
+        addPoolToTable('Multi', poolAddr, tokens);
+    };
+</script>
+</body>
+</html>
