@@ -46,22 +46,15 @@
 <button id="multiBtn">Mint Multi‑Token LP Pool & Add Liquidity</button>
 <p id="status"></p>
 
-<div style="margin: 1em 0;">
-  <button id="removeAllBtn">Remove All Pools</button>
-</div>
-
 <h2>Deployed Pools</h2>
 <table id="poolsTable">
   <thead>
-  <tr><th>Type</th><th>Address</th><th>Tokens</th><th>Actions</th></tr>
+  <tr><th>Type</th><th>Address</th><th>Tokens</th><th>Action</th></tr>
   </thead>
   <tbody></tbody>
 </table>
 
 <script>
-  let account;
-
-
   // --- Table helpers ---
   function addPoolToTable(type, address, tokens) {
     const tbody = document.querySelector('#poolsTable tbody');
@@ -74,33 +67,10 @@
           <button onclick="window.location.href='interact.html?type=${type}&address=${address}'">
             Interact
           </button>
-          <button onclick="removePool('${type}', '${address}', this)">
-            Remove
-          </button>
         </td>
       `;
     tbody.appendChild(tr);
   }
-
-  function removePool(type, address, btn) {
-    // Remove from storage
-    const key = `${type.toLowerCase()}Pool_${address}`;
-    localStorage.removeItem(key);
-    // Remove row from table
-    btn.closest('tr').remove();
-  }
-
-  function removeAllPools() {
-    // Clear all pool entries from localStorage
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('dualPool_') || key.startsWith('multiPool_')) {
-        localStorage.removeItem(key);
-      }
-    });
-    // Clear table body
-    document.querySelector('#poolsTable tbody').innerHTML = '';
-  }
-
   function loadPoolsFromStorage() {
     Object.keys(localStorage).forEach(key => {
       if (key.startsWith('dualPool_') || key.startsWith('multiPool_')) {
@@ -112,138 +82,17 @@
       }
     });
   }
+  window.addEventListener('load', loadPoolsFromStorage);
 
-  window.addEventListener('load', async () => {
-    // 1) load table & wire up Remove All
-    loadPoolsFromStorage();
-    document.getElementById('removeAllBtn').onclick = removeAllPools;
-
-    // 2) initialize web3 & fetch account
-    if (window.ethereum) {
-      window.web3 = new Web3(window.ethereum);
-      await window.ethereum.request({ method: 'eth_requestAccounts' });
-    } else {
-      window.web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
-    }
-    const accts = await web3.eth.getAccounts();
-    account = accts[0];
-
-    // 3) now that account is set, wire up your deploy buttons:
-    // --- DualPool flow ---
-    document.getElementById("dualBtn").onclick = async () => {
-      if (!account) { status.innerText = "Waiting for account…"; return; }
-      const feeOpts = {
-        from: account,
-        maxPriorityFeePerGas: web3.utils.toWei('1','gwei'),
-        maxFeePerGas:        web3.utils.toWei('2','gwei')
-      };
-      status.innerText = "Deploying DualPool…";
-      const [t0, t1] = predefinedTokens;
-      const amt0 = web3.utils.toWei('1500','ether'), amt1 = web3.utils.toWei('1500','ether');
-
-      // 1) deploy
-      const ctr = new web3.eth.Contract(dualAbi);
-      const receipt = await ctr.deploy({ data: dualBytecode, arguments: [t0,t1] })
-              .send({ from: account });
-      const poolAddr = receipt.options.address;
-      const pool    = new web3.eth.Contract(dualAbi, poolAddr);
-
-      // 2) approve token0
-      status.innerText = "Approving token0…";
-      await new web3.eth.Contract(erc20Abi, t0).methods
-              .approve(poolAddr, amt0).send(feeOpts);
-      await debugToken(t0, poolAddr);
-
-      // 3) approve token1
-      status.innerText = "Approving token1…";
-      await new web3.eth.Contract(erc20Abi, t1).methods
-              .approve(poolAddr, amt1).send(feeOpts);
-      await debugToken(t1, poolAddr);
-
-      // 4) dry‑run addLiquidity
-      status.innerText = "Checking addLiquidity…";
-      try {
-        await pool.methods.addLiquidity(amt0, amt1).call({ from: account });
-      } catch (err) {
-        status.innerText = `addLiquidity would revert: ${err.reason||err.message}`;
-        return;
-      }
-
-      // 5) send addLiquidity
-      status.innerText = "Adding liquidity…";
-      await pool.methods.addLiquidity(amt0, amt1).send(feeOpts);
-
-      status.innerText = `DualPool deployed & funded at ${poolAddr} 🎉`;
-      localStorage.setItem(`dualPool_${poolAddr}`, JSON.stringify({ tokenA:t0, tokenB:t1 }));
-      addPoolToTable('Dual', poolAddr, [t0,t1]);
-    };
-
-
-    // --- MultiPool flow ---
-    document.getElementById("multiBtn").onclick = async () => {
-      if (!account) {
-        status.innerText = "Waiting for account…";
-        return;
-      }
-
-      // 1) Prepare tokens & amounts
-      const count   = Math.min(5, Math.max(1, +document.getElementById("multiCount").value));
-      const tokens  = predefinedTokens.slice(0, count);
-      const amt     = web3.utils.toWei('1000', 'ether');
-      const amounts = tokens.map(() => amt);
-
-      // 2) Common tx options
-      const txOpts = {
-        from: account,
-        maxPriorityFeePerGas: web3.utils.toWei('1', 'gwei'),
-        maxFeePerGas:        web3.utils.toWei('2', 'gwei')
-      };
-
-      // 3) Deploy **only** with tokens
-      status.innerText = "Deploying MultiPool…";
-      const deployedContract = await new web3.eth.Contract(multiAbi)
-              .deploy({
-                data:      multiBytecode,
-                arguments: [tokens]         // ← just the tokens array
-              })
-              .send({
-                ...txOpts,
-                gas: await web3.eth.estimateGas({
-                  from: account,
-                  data: multiBytecode +
-                          web3.eth.abi.encodeParameters([ "address[]" ], [tokens]).slice(2)
-                }) + 50_000
-              });
-
-      // 4) Grab the address from the Contract instance
-      const poolAddr = deployedContract.options.address;
-      if (!poolAddr) {
-        throw new Error("No pool address—something went wrong in deploy()");
-      }
-      const pool = new web3.eth.Contract(multiAbi, poolAddr);
-
-      // 5) Approve each token to the pool
-      for (let t of tokens) {
-        status.innerText = `Approving ${t}…`;
-        await new web3.eth.Contract(erc20Abi, t).methods
-                .approve(poolAddr, amt)
-                .send({ ...txOpts, gas: 100_000 });
-        await debugToken(t, poolAddr);
-      }
-
-      // 6) Seed via addLiquidity
-      status.innerText = "Adding liquidity…";
-      await pool.methods
-              .addLiquidity(amounts)
-              .send({ ...txOpts, gas: 300_000 });
-
-      // 7) Done!
-      status.innerText = `MultiPool deployed & funded at ${poolAddr} 🎉`;
-      localStorage.setItem(`multiPool_${poolAddr}`, JSON.stringify({ tokens, amounts }));
-      addPoolToTable('Multi', poolAddr, tokens);
-    };
-
-  });
+  // --- Web3 setup ---
+  let account;
+  if (window.ethereum) {
+    window.web3 = new Web3(window.ethereum);
+    window.ethereum.request({ method: 'eth_requestAccounts' });
+  } else {
+    window.web3 = new Web3(new Web3.providers.HttpProvider("http://localhost:8545"));
+  }
+  web3.eth.getAccounts().then(accts => account = accts[0]);
 
   // --- ABIs & bytecodes (your compiled contracts) ---
   const dualAbi      = [{"type":"constructor","inputs":[{"name":"_token0","type":"address","internalType":"address"},{"name":"_token1","type":"address","internalType":"address"}],"stateMutability":"nonpayable"},{"type":"function","name":"addLiquidity","inputs":[{"name":"amount0","type":"uint256","internalType":"uint256"},{"name":"amount1","type":"uint256","internalType":"uint256"}],"outputs":[],"stateMutability":"nonpayable"},{"type":"function","name":"getReserves","inputs":[],"outputs":[{"name":"","type":"uint112","internalType":"uint112"},{"name":"","type":"uint112","internalType":"uint112"}],"stateMutability":"view"},{"type":"function","name":"swap","inputs":[{"name":"tokenIn","type":"address","internalType":"address"},{"name":"amountIn","type":"uint256","internalType":"uint256"}],"outputs":[],"stateMutability":"nonpayable"},{"type":"function","name":"token0","inputs":[],"outputs":[{"name":"","type":"address","internalType":"contract IERC20"}],"stateMutability":"view"},{"type":"function","name":"token1","inputs":[],"outputs":[{"name":"","type":"address","internalType":"contract IERC20"}],"stateMutability":"view"},{"type":"event","name":"LiquidityAdded","inputs":[{"name":"provider","type":"address","indexed":true,"internalType":"address"},{"name":"amount0","type":"uint256","indexed":false,"internalType":"uint256"},{"name":"amount1","type":"uint256","indexed":false,"internalType":"uint256"},{"name":"newReserve0","type":"uint112","indexed":false,"internalType":"uint112"},{"name":"newReserve1","type":"uint112","indexed":false,"internalType":"uint112"}],"anonymous":false},{"type":"event","name":"Swapped","inputs":[{"name":"buyer","type":"address","indexed":true,"internalType":"address"},{"name":"tokenIn","type":"address","indexed":true,"internalType":"address"},{"name":"amountIn","type":"uint256","indexed":false,"internalType":"uint256"},{"name":"tokenOut","type":"address","indexed":true,"internalType":"address"},{"name":"amountOut","type":"uint256","indexed":false,"internalType":"uint256"}],"anonymous":false}];
@@ -276,6 +125,54 @@
 
   const status = document.getElementById("status");
 
+  // --- DualPool flow ---
+  document.getElementById("dualBtn").onclick = async () => {
+    if (!account) { status.innerText = "Waiting for account…"; return; }
+    const feeOpts = {
+      from: account,
+      maxPriorityFeePerGas: web3.utils.toWei('1','gwei'),
+      maxFeePerGas:        web3.utils.toWei('2','gwei')
+    };
+    status.innerText = "Deploying DualPool…";
+    const [t0, t1] = predefinedTokens;
+    const amt0 = web3.utils.toWei('1500','ether'), amt1 = web3.utils.toWei('1500','ether');
+
+    // 1) deploy
+    const ctr = new web3.eth.Contract(dualAbi);
+    const receipt = await ctr.deploy({ data: dualBytecode, arguments: [t0,t1] })
+            .send({ from: account });
+    const poolAddr = receipt.options.address;
+    const pool    = new web3.eth.Contract(dualAbi, poolAddr);
+
+    // 2) approve token0
+    status.innerText = "Approving token0…";
+    await new web3.eth.Contract(erc20Abi, t0).methods
+            .approve(poolAddr, amt0).send(feeOpts);
+    await debugToken(t0, poolAddr);
+
+    // 3) approve token1
+    status.innerText = "Approving token1…";
+    await new web3.eth.Contract(erc20Abi, t1).methods
+            .approve(poolAddr, amt1).send(feeOpts);
+    await debugToken(t1, poolAddr);
+
+    // 4) dry‑run addLiquidity
+    status.innerText = "Checking addLiquidity…";
+    try {
+      await pool.methods.addLiquidity(amt0, amt1).call({ from: account });
+    } catch (err) {
+      status.innerText = `addLiquidity would revert: ${err.reason||err.message}`;
+      return;
+    }
+
+    // 5) send addLiquidity
+    status.innerText = "Adding liquidity…";
+    await pool.methods.addLiquidity(amt0, amt1).send(feeOpts);
+
+    status.innerText = `DualPool deployed & funded at ${poolAddr} 🎉`;
+    localStorage.setItem(`dualPool_${poolAddr}`, JSON.stringify({ tokenA:t0, tokenB:t1 }));
+    addPoolToTable('Dual', poolAddr, [t0,t1]);
+  };
 
 
   // --- MultiPool flow ---
@@ -287,6 +184,69 @@
 
 
 
+  // --- MultiPool flow ---
+  document.getElementById("multiBtn").onclick = async () => {
+    if (!account) {
+      status.innerText = "Waiting for account…";
+      return;
+    }
+
+    // 1) Prepare tokens & amounts
+    const count   = Math.min(5, Math.max(1, +document.getElementById("multiCount").value));
+    const tokens  = predefinedTokens.slice(0, count);
+    const amt     = web3.utils.toWei('1000', 'ether');
+    const amounts = tokens.map(() => amt);
+
+    // 2) Common tx options
+    const txOpts = {
+      from: account,
+      maxPriorityFeePerGas: web3.utils.toWei('1', 'gwei'),
+      maxFeePerGas:        web3.utils.toWei('2', 'gwei')
+    };
+
+    // 3) Deploy **only** with tokens
+    status.innerText = "Deploying MultiPool…";
+    const deployedContract = await new web3.eth.Contract(multiAbi)
+            .deploy({
+              data:      multiBytecode,
+              arguments: [tokens]         // ← just the tokens array
+            })
+            .send({
+              ...txOpts,
+              gas: await web3.eth.estimateGas({
+                from: account,
+                data: multiBytecode +
+                        web3.eth.abi.encodeParameters([ "address[]" ], [tokens]).slice(2)
+              }) + 50_000
+            });
+
+    // 4) Grab the address from the Contract instance
+    const poolAddr = deployedContract.options.address;
+    if (!poolAddr) {
+      throw new Error("No pool address—something went wrong in deploy()");
+    }
+    const pool = new web3.eth.Contract(multiAbi, poolAddr);
+
+    // 5) Approve each token to the pool
+    for (let t of tokens) {
+      status.innerText = `Approving ${t}…`;
+      await new web3.eth.Contract(erc20Abi, t).methods
+              .approve(poolAddr, amt)
+              .send({ ...txOpts, gas: 100_000 });
+      await debugToken(t, poolAddr);
+    }
+
+    // 6) Seed via addLiquidity
+    status.innerText = "Adding liquidity…";
+    await pool.methods
+            .addLiquidity(amounts)
+            .send({ ...txOpts, gas: 300_000 });
+
+    // 7) Done!
+    status.innerText = `MultiPool deployed & funded at ${poolAddr} 🎉`;
+    localStorage.setItem(`multiPool_${poolAddr}`, JSON.stringify({ tokens, amounts }));
+    addPoolToTable('Multi', poolAddr, tokens);
+  };
 
 
 </script>

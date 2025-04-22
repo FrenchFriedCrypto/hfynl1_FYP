@@ -7,45 +7,57 @@ interface IERC20 {
 }
 
 contract MultiPool {
+    // --- State ---
     address[] public tokens;
     mapping(address => uint256) public reserves;  // token → reserve
 
+    // --- Events ---
     event LiquidityAdded(address indexed provider, address[] tokens, uint256[] amounts);
-    event Swapped(address indexed buyer, address indexed tokenIn, uint256 amountIn, address indexed tokenOut, uint256 amountOut);
+    event Swapped(
+        address indexed buyer,
+        address indexed tokenIn,
+        uint256 amountIn,
+        address indexed tokenOut,
+        uint256 amountOut
+    );
 
-    constructor(address[] memory _tokens, uint256[] memory initialAmounts) {
+    /// @notice Constructor: only registers tokens, no deposits here
+    constructor(address[] memory _tokens) {
         require(_tokens.length >= 2, "Need >=2 tokens");
-        require(_tokens.length == initialAmounts.length, "Tokens != amounts");
-
         tokens = _tokens;
+        // initialize reserves to zero
         for (uint i = 0; i < tokens.length; i++) {
-            address t = tokens[i];
-            uint256 amt = initialAmounts[i];
-            IERC20(t).transferFrom(msg.sender, address(this), amt);
-            reserves[t] = amt;
+            reserves[tokens[i]] = 0;
         }
-        emit LiquidityAdded(msg.sender, tokens, initialAmounts);
     }
 
-    /// @notice Add balanced liquidity across all tokens
+    /// @notice Add (initial) liquidity: caller must approve this contract first
     function addLiquidity(uint256[] memory amounts) external {
         require(amounts.length == tokens.length, "Bad array length");
         for (uint i = 0; i < tokens.length; i++) {
             address t = tokens[i];
-            IERC20(t).transferFrom(msg.sender, address(this), amounts[i]);
-            reserves[t] += amounts[i];
+            uint256 amt = amounts[i];
+            require(
+                IERC20(t).transferFrom(msg.sender, address(this), amt),
+                "TF"
+            );
+            reserves[t] += amt;
         }
         emit LiquidityAdded(msg.sender, tokens, amounts);
     }
 
     /// @notice Swap exact `amountIn` of `tokenIn` for `tokenOut` using N‑variate constant product
-    function swap(address tokenIn, uint256 amountIn, address tokenOut) external {
+    function swap(
+        address tokenIn,
+        uint256 amountIn,
+        address tokenOut
+    ) external {
         require(reserves[tokenIn] > 0 && reserves[tokenOut] > 0, "Invalid tokens");
 
         // compute current product k = Π reserves
         uint256 k = 1;
         for (uint i = 0; i < tokens.length; i++) {
-            k = k * reserves[tokens[i]];
+            k *= reserves[tokens[i]];
         }
 
         // new reserveIn = old + amountIn
@@ -57,9 +69,15 @@ contract MultiPool {
         uint256 amountOut = reserves[tokenOut] - newReserveOut;
         require(amountOut > 0, "Insufficient output");
 
-        // execute
-        IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
-        IERC20(tokenOut).transfer(msg.sender, amountOut);
+        // execute transfers
+        require(
+            IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn),
+            "TF in"
+        );
+        require(
+            IERC20(tokenOut).transfer(msg.sender, amountOut),
+            "TF out"
+        );
 
         // update reserves
         reserves[tokenIn] += amountIn;
