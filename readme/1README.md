@@ -1,3 +1,4 @@
+# README 1
 # Getting Started with Foundry Anvil on Windows
 
 This README will guide you through setting up a fresh Windows installation to running a local Ethereum node using Foundry’s Anvil tool. You’ll install WSL 2, a Linux distro, Foundry, and any necessary dependencies.

@@ -1,3 +1,4 @@
+# README 3
 # Automated AMM Pools & Token Factory
 
 This document describes the methodology and architecture behind our on-chain token and liquidity‑pool contracts. We implement two core pool types—Dual-Token Pool and Multi-Token Pool—on top of minimal ERC-20 token contracts. The focus here is on the **design decisions**, **core logic**, and **deployment flows** used in each contract.
