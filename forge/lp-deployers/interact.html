@@ -78,6 +78,10 @@
 </ul>
 
 <script>
+
+    const short = a => a.slice(0,4) + "…" + a.slice(-4);
+
+
     // --- web3 & account setup
     if (window.ethereum) {
         window.web3 = new Web3(window.ethereum);
@@ -107,7 +111,11 @@
             const type = k.startsWith('dualPool_') ? 'Dual' : 'Multi';
             const tokens = type === 'Dual' ? [ data.tokenA, data.tokenB ] : data.tokens;
             pools.push({ type, address: addr, tokens });
-            poolSelect.appendChild(new Option(`${type} @ ${addr}`, pools.length-1));
+            // after
+            poolSelect.appendChild(new Option(
+                `${type} @ ${short(addr)}`,
+                pools.length-1
+            ));
         }
     });
 
@@ -119,8 +127,9 @@
         tokenIn.innerHTML = '';
         tokenOut.innerHTML = '';
         p.tokens.forEach(t => {
-            tokenIn.add(new Option(t, t));
-            if (p.type === 'Multi') tokenOut.add(new Option(t, t));
+            tokenIn.add(new Option(short(t), t));
+            if (p.type === 'Multi')
+                tokenOut.add(new Option(short(t), t));
         });
         tokenOut.disabled = p.type !== 'Multi';
     }

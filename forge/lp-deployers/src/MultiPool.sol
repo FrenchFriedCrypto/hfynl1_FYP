@@ -47,41 +47,28 @@ contract MultiPool {
     }
 
     /// @notice Swap exact `amountIn` of `tokenIn` for `tokenOut` using N‑variate constant product
-    function swap(
-        address tokenIn,
-        uint256 amountIn,
-        address tokenOut
-    ) external {
-        require(reserves[tokenIn] > 0 && reserves[tokenOut] > 0, "Invalid tokens");
+    function swap(address tokenIn, uint256 amountIn, address tokenOut)
+    external
+    {
+        uint256 Rin = reserves[tokenIn];
+        uint256 Rout = reserves[tokenOut];
+        require(Rin > 0 && Rout > 0, "Invalid tokens");
 
-        // compute current product k = Π reserves
-        uint256 k = 1;
-        for (uint i = 0; i < tokens.length; i++) {
-            k *= reserves[tokens[i]];
-        }
+        // pull in
+        require(IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn),
+            "TF in");
 
-        // new reserveIn = old + amountIn
-        uint256 newReserveIn = reserves[tokenIn] + amountIn;
-        // solve for newReserveOut = k / (Π other reserves * newReserveIn)
-        uint256 prodOther = k / reserves[tokenOut];
-        uint256 newReserveOut = prodOther / newReserveIn;
-
-        uint256 amountOut = reserves[tokenOut] - newReserveOut;
+        // 2-token constant-product formula
+        uint256 amountOut = (amountIn * Rout) / (Rin + amountIn);
         require(amountOut > 0, "Insufficient output");
 
-        // execute transfers
-        require(
-            IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn),
-            "TF in"
-        );
-        require(
-            IERC20(tokenOut).transfer(msg.sender, amountOut),
-            "TF out"
-        );
+        // push out
+        require(IERC20(tokenOut).transfer(msg.sender, amountOut),
+            "TF out");
 
         // update reserves
-        reserves[tokenIn] += amountIn;
-        reserves[tokenOut] -= amountOut;
+        reserves[tokenIn]  = Rin + amountIn;
+        reserves[tokenOut] = Rout - amountOut;
 
         emit Swapped(msg.sender, tokenIn, amountIn, tokenOut, amountOut);
     }

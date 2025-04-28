@@ -57,8 +57,8 @@ foundryup                                     # fetches latest forge, anvil...
    ```bash
    anvil
    ```
-   
-Alterntatively, run anvil with the following command to save its state on close:
+
+Alternatively, run anvil with the following command to save its state on close:
 
     ```bash
     anvil       
@@ -182,8 +182,6 @@ contract SimpleToken {
     balanceOf[to]         += amount;
     return true;
   }
-
-  // Optional: approve/allowance if you need more advanced flows
 }
 ```
 
@@ -197,45 +195,77 @@ contract SimpleToken {
 A classic 2-asset constant-product AMM:
 
 ```solidity
-contract DualPool {
-  IERC20 public token0;
-  IERC20 public token1;
-  uint112 private reserve0;
-  uint112 private reserve1;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
 
-  constructor(address _token0, address _token1) {
-    token0 = IERC20(_token0);
-    token1 = IERC20(_token1);
-  }
-
-  function addLiquidity(uint256 amount0, uint256 amount1) external {
-    token0.transferFrom(msg.sender, address(this), amount0);
-    token1.transferFrom(msg.sender, address(this), amount1);
-    reserve0 += uint112(amount0);
-    reserve1 += uint112(amount1);
-  }
-
-  function swap(address tokenIn, uint256 amountIn) external {
-    // Determine which side, apply constant‑product formula
-    (IERC20 inToken, IERC20 outToken, uint112 rIn, uint112 rOut) =
-      tokenIn == address(token0)
-        ? (token0, token1, reserve0, reserve1)
-        : (token1, token0, reserve1, reserve0);
-
-    uint256 amountOut = (uint256(rOut) * amountIn) / (uint256(rIn) + amountIn);
-    inToken.transferFrom(msg.sender, address(this), amountIn);
-    outToken.transfer(msg.sender, amountOut);
-
-    // Update reserves
-    if (tokenIn == address(token0)) {
-      reserve0 += uint112(amountIn);
-      reserve1 -= uint112(amountOut);
-    } else {
-      reserve1 += uint112(amountIn);
-      reserve0 -= uint112(amountOut);
-    }
-  }
+interface IERC20 {
+    function transferFrom(address, address, uint256) external returns (bool);
+    function transfer(address, uint256) external returns (bool);
 }
+
+contract DualPool {
+    IERC20 public token0;
+    IERC20 public token1;
+    uint112 private reserve0;
+    uint112 private reserve1;
+
+    event LiquidityAdded(address indexed provider, uint256 amount0, uint256 amount1, uint112 newReserve0, uint112 newReserve1);
+    event Swapped(address indexed buyer, address indexed tokenIn, uint256 amountIn, address indexed tokenOut, uint256 amountOut);
+
+    constructor(address _token0, address _token1) {
+        require(_token0 != _token1, "Tokens must differ");
+        token0 = IERC20(_token0);
+        token1 = IERC20(_token1);
+    }
+
+    /// @notice Adds liquidity in proportion to current reserves
+    function addLiquidity(uint256 amount0, uint256 amount1) external {
+        // transfer tokens in
+        token0.transferFrom(msg.sender, address(this), amount0);
+        token1.transferFrom(msg.sender, address(this), amount1);
+        // update reserves
+        reserve0 += uint112(amount0);
+        reserve1 += uint112(amount1);
+        emit LiquidityAdded(msg.sender, amount0, amount1, reserve0, reserve1);
+    }
+
+    /// @notice Swaps exactly `amountIn` of tokenIn for tokenOut
+    function swap(address tokenIn, uint256 amountIn) external {
+        require(tokenIn == address(token0) || tokenIn == address(token1), "Invalid tokenIn");
+        // identify in/out
+        (IERC20 inToken, IERC20 outToken, uint112 resIn, uint112 resOut) =
+            tokenIn == address(token0)
+                ? (token0, token1, reserve0, reserve1)
+                : (token1, token0, reserve1, reserve0);
+
+        // constant‐product formula: amountOut = resOut - (resIn * resOut) / (resIn + amountIn)
+        uint256 numerator   = uint256(resIn) * uint256(resOut);
+        uint256 denominator = uint256(resIn) + amountIn;
+        uint256 amountOut   = uint256(resOut) - (numerator / denominator);
+
+        require(amountOut > 0, "Insufficient output");
+        // transfer tokens
+        inToken.transferFrom(msg.sender, address(this), amountIn);
+        outToken.transfer(msg.sender, amountOut);
+
+        // update reserves
+        if (tokenIn == address(token0)) {
+            reserve0 = uint112(resIn + amountIn);
+            reserve1 = uint112(resOut - amountOut);
+        } else {
+            reserve1 = uint112(resIn + amountIn);
+            reserve0 = uint112(resOut - amountOut);
+        }
+
+        emit Swapped(msg.sender, tokenIn, amountIn, address(outToken), amountOut);
+    }
+
+    /// @notice Expose reserves for UI
+    function getReserves() external view returns (uint112, uint112) {
+        return (reserve0, reserve1);
+    }
+}
+
 ```
 
 ### Constructor & State
@@ -265,33 +295,89 @@ contract DualPool {
 Generalizes the dual pool to N tokens:
 
 ```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+interface IERC20 {
+    function transferFrom(address, address, uint256) external returns (bool);
+    function transfer(address, uint256) external returns (bool);
+}
+
 contract MultiPool {
-  address[] public tokens;
-  mapping(address => uint256) public reserveOf;
+    // --- State ---
+    address[] public tokens;
+    mapping(address => uint256) public reserves;  // token → reserve
 
-  constructor(address[] memory _tokens) {
-    tokens = _tokens;
-  }
+    // --- Events ---
+    event LiquidityAdded(address indexed provider, address[] tokens, uint256[] amounts);
+    event Swapped(
+        address indexed buyer,
+        address indexed tokenIn,
+        uint256 amountIn,
+        address indexed tokenOut,
+        uint256 amountOut
+    );
 
-  function addLiquidity(uint256[] calldata amounts) external {
-    require(amounts.length == tokens.length, "length mismatch");
-    for (uint i = 0; i < tokens.length; i++) {
-      IERC20(tokens[i]).transferFrom(msg.sender, address(this), amounts[i]);
-      reserveOf[tokens[i]] += amounts[i];
+    /// @notice Constructor: only registers tokens, no deposits here
+    constructor(address[] memory _tokens) {
+        require(_tokens.length >= 2, "Need >=2 tokens");
+        tokens = _tokens;
+        // initialize reserves to zero
+        for (uint i = 0; i < tokens.length; i++) {
+            reserves[tokens[i]] = 0;
+        }
     }
-  }
 
-  function swap(address tokenIn, uint256 amountIn, address tokenOut) external {
-    uint256 rIn  = reserveOf[tokenIn];
-    uint256 rOut = reserveOf[tokenOut];
-    uint256 amountOut = (rOut * amountIn) / (rIn + amountIn);
+    /// @notice Add (initial) liquidity: caller must approve this contract first
+    function addLiquidity(uint256[] memory amounts) external {
+        require(amounts.length == tokens.length, "Bad array length");
+        for (uint i = 0; i < tokens.length; i++) {
+            address t = tokens[i];
+            uint256 amt = amounts[i];
+            require(
+                IERC20(t).transferFrom(msg.sender, address(this), amt),
+                "TF"
+            );
+            reserves[t] += amt;
+        }
+        emit LiquidityAdded(msg.sender, tokens, amounts);
+    }
 
-    IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn);
-    IERC20(tokenOut).transfer(msg.sender, amountOut);
+    /// @notice Swap exact `amountIn` of `tokenIn` for `tokenOut` using N‑variate constant product
+    function swap(address tokenIn, uint256 amountIn, address tokenOut)
+    external
+    {
+        uint256 Rin = reserves[tokenIn];
+        uint256 Rout = reserves[tokenOut];
+        require(Rin > 0 && Rout > 0, "Invalid tokens");
 
-    reserveOf[tokenIn] += amountIn;
-    reserveOf[tokenOut] -= amountOut;
-  }
+        // pull in
+        require(IERC20(tokenIn).transferFrom(msg.sender, address(this), amountIn),
+            "TF in");
+
+        // 2-token constant-product formula
+        uint256 amountOut = (amountIn * Rout) / (Rin + amountIn);
+        require(amountOut > 0, "Insufficient output");
+
+        // push out
+        require(IERC20(tokenOut).transfer(msg.sender, amountOut),
+            "TF out");
+
+        // update reserves
+        reserves[tokenIn]  = Rin + amountIn;
+        reserves[tokenOut] = Rout - amountOut;
+
+        emit Swapped(msg.sender, tokenIn, amountIn, tokenOut, amountOut);
+    }
+
+    /// @notice Get all current reserves in order
+    function getAllReserves() external view returns (uint256[] memory) {
+        uint256[] memory out = new uint256[](tokens.length);
+        for (uint i = 0; i < tokens.length; i++) {
+            out[i] = reserves[tokens[i]];
+        }
+        return out;
+    }
 }
 ```
 
@@ -462,7 +548,7 @@ Once a pool is successfully minted it will appear in a table below. To remove a 
     
 ---
 
-## 6. Troubleshooting
+## 10. Troubleshooting
 
 | Issue | Fix |
 |-------|-----|
