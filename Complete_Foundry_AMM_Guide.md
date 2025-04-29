@@ -4,8 +4,6 @@ This document walks you through everything—from setting up your Windows enviro
 
 ---
 
-big
-
 ## 📌 Table of Contents
 
 1. [Environment Setup on Windows](#1-environment-setup-on-windows)  
