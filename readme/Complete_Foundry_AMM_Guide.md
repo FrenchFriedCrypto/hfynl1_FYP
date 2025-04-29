@@ -69,6 +69,8 @@ Alternatively, run anvil with the following command to save its state on close:
     ```
 
 2. Dump state:
+    
+Make sure anvil is running on another terminal before running this command in another Git bash terminal
 
    ```bash
    curl -s -X POST http://127.0.0.1:8545 -H "Content-Type: application/json" --data '{
