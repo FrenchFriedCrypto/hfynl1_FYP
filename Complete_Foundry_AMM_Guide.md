@@ -70,58 +70,46 @@ Alternatively, run anvil with the following command to save its state on close:
 
 2. Dump state:
     
-    Run :
-    ```bash
-    pwd
-    ```
+Make sure anvil is running on another terminal before running this command in another Git bash terminal
 
-    in git bash on the old pc to find where the anvil-state.json file is located at. Copy it and transfer `anvil-state.json` to new PC.
+   ```bash
+   curl -s -X POST http://127.0.0.1:8545 -H "Content-Type: application/json" --data '{
+     "jsonrpc":"2.0","id":1,"method":"anvil_dumpState","params":[]
+   }' > anvil-state.hex
+   ```
+
+3. Transfer `anvil-state.hex` to new PC.
 
 ---
 
 ### 🖥️ Import on PC B
 
 1. Ensure Git Bash and Foundry are installed.
-2. Run pwd on the other divide and paste the hex file into that location
-
-3. Start Anvil using:
+2. Start Anvil:
 
    ```bash
-    anvil --load-state anvil-state.json
-
+   anvil &
+   ANVIL_PID=$!
    ```
-    Now anvil should be running with the saved state from the old PC
+
+3. Load the state:
+
+   ```bash
+   STATE_HEX=$(< anvil-state.hex)
+   curl -s -X POST http://127.0.0.1:8545 -H "Content-Type: application/json" --data "{
+     \"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"anvil_loadState\",\"params\":[\"$STATE_HEX\"]
+   }"
+   ```
+
 ---
 
 ## 3. Stopping Anvil
 
 - Press **Ctrl + C** in your Ubuntu terminal to gracefully stop the node.
 
-    Before stopping anvil, run:
-
-    ```bash
-        curl -s -X POST http://127.0.0.1:8545 \
-        -H "Content-Type: application/json" \
-        --data '{"jsonrpc":"2.0","id":1,"method":"anvil_dumpState","params":[]}' \
-        > anvil-state.json
-    
-    ```
-
-
-on another window terminal to save the current state of the chain
-
-- In the future when starting anvil again on the new PC run:
-    
-  ```bash
-      anvil       
-      --port 8545  
-      --chain-id 31337   
-      --state anvil-state.json   
-      --preserve-historical-states
-  ```
-
 ---
 
+---
 
 ## 4. Connecting to Anvil
 
