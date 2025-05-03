@@ -10,7 +10,6 @@
       font-family: Arial, sans-serif;
       margin: 20px;
     }
-     /* Navigation bar styled as inline buttons */
     .navbar {
       text-align: center;
       margin-bottom: 20px;
@@ -30,50 +29,82 @@
     .navbar a:hover {
       background-color: #ddd;
     }
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
+
+    /* intro text container */
+    .intro-container {
+      max-width: 800px;
+      margin: 0 auto 30px;
+      line-height: 1.5;
+    }
+    .intro-container h2 {
       text-align: center;
+      margin-bottom: 10px;
+    }
+    .intro-container p {
+      text-align: justify;
+      margin-bottom: 15px;
+    }
+
+    /* charts flex row */
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
     }
     .chart-container {
-      width: 1150px;
-      margin: 30px auto;
+      flex: 1 1 700px;
+      min-width: 700px;
+      min-height: 450px;
+      margin: 0 10px 20px;
+      text-align: center;
+    }
+    .chart-container h3 {
+      margin-bottom: 10px;
+    }
+    .chart-container canvas {
+      max-width: 100%;
+      max-height: 100%;
     }
   </style>
 </head>
 <body>
-  <div class="navbar">
-    <a href="token_slippage.html">Slippage</a>
-<!--    <a href="token_crash_base.html">Crash</a>-->
-    <a href="token_crash_equal.html">Crash Adj</a>
-    <a href="token_hop.html">Hop</a>
-    <a href="token_hop_one.html">Hop Pool</a>
-    <a href="token_mev.html">MEV</a>
-    <a href="captial_manage.html">Capital (3)</a>
-<!--    <a href="captial_manage_4.html">Capital (4)</a>-->
-<!--    <a href="captial_manage_5.html">Capital (5)</a>-->
-    <a href="captial_manage_6.html">Capital (6)</a>
-    <a href="captial_manage_comparison.html">$ Comparison</a>
-  </div>
-  <div class="container">
-    <h2>Capital Efficiency Comparison for 6 Tokens</h2>
-    <p>
-      <strong>Dual Liquidity Pools:</strong><br>
-      To provide liquidity for tokens A, B, C, D, E, and F using dual pools, you create one pool for every pair (15 pools total).<br>
-      Each pool requires 1000 tokens of each asset (i.e. \$2000 per pool), resulting in a total capital requirement of \$30,000.
-    </p>
-    <div class="chart-container">
-      <canvas id="dualChart"></canvas>
-    </div>
+<div class="navbar">
+  <a href="token_slippage.html">Slippage</a>
+  <a href="token_crash_equal.html">Crash Adj</a>
+  <a href="token_hop.html">Hop</a>
+  <a href="token_hop_one.html">Hop Pool</a>
+  <a href="token_mev.html">MEV</a>
+  <a href="captial_manage.html">Capital (3)</a>
+  <a href="captial_manage_6.html">Capital (6)</a>
+  <a href="captial_manage_comparison.html">$ Comparison</a>
+</div>
 
-    <p>
-      <strong>Multicoin Liquidity Pool:</strong><br>
-      A single pool holding tokens A, B, C, D, E, and F requires a deposit of 1000 tokens each, totaling \$6000.
-    </p>
-    <div class="chart-container">
-      <canvas id="multiChart"></canvas>
-    </div>
+<!-- intro text -->
+<div class="intro-container">
+  <h2>Capital Efficiency Comparison for 6 Tokens</h2>
+  <p>
+    <strong>Dual Liquidity Pools:</strong><br>
+    To provide liquidity for tokens A, B, C, D, E, and F using dual pools, you create one pool for every pair (15 pools total).
+    Each pool requires 1000 tokens of each asset (i.e. $2000 per pool), resulting in a total capital requirement of $30,000.
+  </p>
+  <p>
+    <strong>Multicoin Liquidity Pool:</strong><br>
+    A single pool holding tokens A, B, C, D, E, and F requires a deposit of 1000 tokens each, totaling $6000.
+  </p>
+</div>
+
+<!-- charts laid out side-by-side, wrapping as needed -->
+<div class="container">
+  <div class="chart-container">
+    <h3>Dual Liquidity Pools (15 Pools)</h3>
+    <canvas id="dualChart"></canvas>
   </div>
+
+  <div class="chart-container">
+    <h3>Multicoin Liquidity Pool (6 Tokens)</h3>
+    <canvas id="multiChart"></canvas>
+  </div>
+</div>
 
   <script>
     // ----- Dual Liquidity Pools Data (15 Pools for 6 Tokens) -----

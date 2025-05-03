@@ -29,184 +29,167 @@
     .navbar a:hover {
       background-color: #ddd;
     }
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
+
+    /* Intro text container */
+    .intro-container {
+      max-width: 800px;
+      margin: 0 auto 30px;
+      line-height: 1.5;
+    }
+    .intro-container h2 {
+      margin-bottom: 10px;
       text-align: center;
     }
+    .intro-container p {
+      text-align: justify;
+    }
+
+    /* Charts flex row */
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
     .chart-container {
-      width: 800px;
-      margin: 0 auto 50px;
+      flex: 1 1 700px;       /* grow, shrink, base width = 700px */
+      min-width: 700px;
+      min-height: 450px;
+      margin: 0 10px 20px;   /* spacing between items */
+      text-align: center;
+    }
+    .chart-container h3 {
+      margin-bottom: 10px;
     }
   </style>
 </head>
 <body>
-  <!-- Navigation Bar -->
-  <div class="navbar">
-    <a href="token_slippage.html">Slippage</a>
-<!--    <a href="token_crash_base.html">Crash</a>-->
-    <a href="token_crash_equal.html">Crash Adj</a>
-    <a href="token_hop.html">Hop</a>
-    <a href="token_hop_one.html">Hop Pool</a>
-    <a href="token_mev.html">MEV</a>
-    <a href="captial_manage.html">Capital (3)</a>
-<!--    <a href="captial_manage_4.html">Capital (4)</a>-->
-<!--    <a href="captial_manage_5.html">Capital (5)</a>-->
-    <a href="captial_manage_6.html">Capital (6)</a>
-    <a href="captial_manage_comparison.html">$ Comparison</a>
-  </div>
-  <div class="container">
-    <h2>Liquidity Pool Balances and Total USD Value After Token A Crash<br>(with Arbitrage Swap)</h2>
-    <p>
-      In this demonstration we assume a constant‐product pool. For a dual pool that starts at 1500:1500, if Token A crashes (its value drops from $1 to p dollars), an arbitrage trade will adjust the balances so that:
-      <br>• Token A balance becomes 1500/√p and Token B balance becomes 1500·√p.
-      <br>• The pool’s implied swap rate (Token B/Token A) equals p.
-      <br>A similar process applies for the three-token (multicoin) pool.
-    </p>
+<!-- Navigation Bar -->
+<div class="navbar">
+  <a href="token_slippage.html">Slippage</a>
+  <a href="token_crash_equal.html">Crash Adj</a>
+  <a href="token_hop.html">Hop</a>
+  <a href="token_hop_one.html">Hop Pool</a>
+  <a href="token_mev.html">MEV</a>
+  <a href="captial_manage.html">Capital (3)</a>
+  <a href="captial_manage_6.html">Capital (6)</a>
+  <a href="captial_manage_comparison.html">$ Comparison</a>
+</div>
 
-    <!-- Standard Pool Chart -->
-    <div class="chart-container">
-      <h3>Standard Liquidity Pool (2-token)</h3>
-      <canvas id="chartStandard"></canvas>
-    </div>
+<!-- intro text in its own centered, max-width box -->
+<div class="intro-container">
+  <h2>Liquidity Pool Balances and Total USD Value After Token A Crash<br>(with Arbitrage Swap)</h2>
+  <p>
+    In this demonstration we assume a constant-product pool. For a dual pool that starts at 1500:1500, if Token A crashes (its value drops from $1 to p dollars), an arbitrage trade will adjust the balances so that:
+    <br>• Token A balance becomes 1500/√p and Token B balance becomes 1500·√p.
+    <br>• The pool’s implied swap rate (Token B/Token A) equals p.
+    <br>A similar process applies for the three-token (multicoin) pool.
+  </p>
+</div>
 
-    <!-- Multicoin Pool Chart -->
-    <div class="chart-container">
-      <h3>Multicoin Liquidity Pool (3-token)</h3>
-      <canvas id="chartMulti"></canvas>
-    </div>
-
-    <!-- USD Capital Retained Chart -->
-    <div class="chart-container">
-      <h3>USD Capital Retained Post Crash</h3>
-      <canvas id="chartUSD"></canvas>
-    </div>
+<!-- charts laid out horizontally, wrapping as needed -->
+<div class="container">
+  <div class="chart-container">
+    <h3>Standard Liquidity Pool (2-token)</h3>
+    <canvas id="chartStandard"></canvas>
   </div>
 
-  <script>
-    // Crash severity labels and corresponding p values (Token A's new price)
-    const labels = ["50% crash", "55% crash", "60% crash", "65% crash", "70% crash", "75% crash", "80% crash", "85% crash", "90% crash", "95% crash"];
-    const pValues = [0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05];
+  <div class="chart-container">
+    <h3>Multicoin Liquidity Pool (3-token)</h3>
+    <canvas id="chartMulti"></canvas>
+  </div>
 
-    // For Standard (2-token) pool with initial balances of 1500 each:
-    // Invariant: 1500 * 1500; target pool price: TokenB/TokenA = p.
-    // Thus: Token A = 1500/√p, Token B = 1500·√p.
-    const standardTokenA = pValues.map(p => 1500 / Math.sqrt(p));
-    const standardTokenB = pValues.map(p => 1500 * Math.sqrt(p));
+  <div class="chart-container">
+    <h3>USD Capital Retained Post Crash</h3>
+    <canvas id="chartUSD"></canvas>
+  </div>
+</div>
 
-    // For Multicoin (3-token) pool with initial balances of 1000 each:
-    // Invariant: 1000^3; target conditions: TokenB/TokenA = TokenC/TokenA = p.
-    // Thus: Token A = 1000/(p^(2/3)), Tokens B and C = 1000·(p^(1/3)).
-    const multiTokenA = pValues.map(p => 1000 / Math.pow(p, 2/3));
-    const multiTokenB = pValues.map(p => 1000 * Math.pow(p, 1/3));
-    const multiTokenC = multiTokenB; // same as Token B
+<script>
+  // Crash severity labels and corresponding p values (Token A's new price)
+  const labels = ["50% crash", "55% crash", "60% crash", "65% crash", "70% crash", "75% crash", "80% crash", "85% crash", "90% crash", "95% crash"];
+  const pValues = [0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1, 0.05];
 
-    // USD Value Calculation:
-    // For Standard pool, after arbitrage:
-    // Value of Token A = (1500/√p)*p = 1500·√p, Token B = 1500·√p,
-    // Total USD = 1500·√p + 1500·√p = 3000·√p.
-    const standardUSD = pValues.map(p => 3000 * Math.sqrt(p));
+  // Standard pool (2-token) balances after arbitrage
+  const standardTokenA = pValues.map(p => 1500 / Math.sqrt(p));
+  const standardTokenB = pValues.map(p => 1500 * Math.sqrt(p));
+  const standardUSD   = pValues.map(p => 3000 * Math.sqrt(p));
 
-    // For Multicoin pool:
-    // Value of Token A = (1000/(p^(2/3)))*p = 1000·p^(1/3), Tokens B and C = 1000·p^(1/3) each,
-    // Total USD = 1000·p^(1/3) + 2*1000·p^(1/3) = 3000·p^(1/3).
-    const multiUSD = pValues.map(p => 3000 * Math.pow(p, 1/3));
+  // Multicoin pool (3-token) balances after arbitrage
+  const multiTokenA = pValues.map(p => 1000 / Math.pow(p, 2/3));
+  const multiTokenB = pValues.map(p => 1000 * Math.pow(p, 1/3));
+  const multiTokenC = multiTokenB; // same as Token B
+  const multiUSD    = pValues.map(p => 3000 * Math.pow(p, 1/3));
 
-    // Standard Pool Chart
-    const ctxStandard = document.getElementById('chartStandard').getContext('2d');
-    const chartStandard = new Chart(ctxStandard, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: 'Token A Balance',
-            data: standardTokenA,
-            backgroundColor: 'rgba(54, 162, 235, 0.7)'
-          },
-          {
-            label: 'Token B Balance',
-            data: standardTokenB,
-            backgroundColor: 'rgba(255, 99, 132, 0.7)'
+  // Standard Pool Chart
+  new Chart(document.getElementById('chartStandard').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Token A Balance', data: standardTokenA, backgroundColor: 'rgba(54, 162, 235, 0.7)' },
+        { label: 'Token B Balance', data: standardTokenB, backgroundColor: 'rgba(255, 99, 132, 0.7)' }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { title: { display: true, text: 'Standard Pool Balances (Arbitrage Adjusted)' } },
+      scales: {
+        x: {
+          title: { display: true, text: 'Crash Severity and Total USD Value' },
+          ticks: {
+            callback: (val, idx) => [`${labels[idx]}`, `USD: ${ (3000*Math.sqrt(pValues[idx])).toFixed(2)}`]
           }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          title: { display: true, text: 'Standard Pool Balances (Arbitrage Adjusted)' }
         },
-        scales: {
-          x: {
-            title: { display: true, text: 'Crash Severity and Total USD Value' },
-            ticks: {
-              callback: function(value, index) {
-                let p = pValues[index];
-                let totalUSD = 3000 * Math.sqrt(p);
-                return [labels[index], "USD: " + totalUSD.toFixed(2)];
-              }
-            }
-          },
-          y: { title: { display: true, text: 'Token Balance' } }
-        }
+        y: { title: { display: true, text: 'Token Balance' } }
       }
-    });
+    }
+  });
 
-    // Multicoin Pool Chart
-    const ctxMulti = document.getElementById('chartMulti').getContext('2d');
-    const chartMulti = new Chart(ctxMulti, {
-      type: 'bar',
-      data: {
-        labels: labels,
-        datasets: [
-          { label: 'Token A Balance', data: multiTokenA, backgroundColor: 'rgba(54, 162, 235, 0.7)' },
-          { label: 'Token B Balance', data: multiTokenB, backgroundColor: 'rgba(255, 99, 132, 0.7)' },
-          { label: 'Token C Balance', data: multiTokenC, backgroundColor: 'rgba(75, 192, 192, 0.7)' }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          title: { display: true, text: 'Multicoin Pool Balances (Arbitrage Adjusted)' }
+  // Multicoin Pool Chart
+  new Chart(document.getElementById('chartMulti').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Token A Balance', data: multiTokenA, backgroundColor: 'rgba(54, 162, 235, 0.7)' },
+        { label: 'Token B Balance', data: multiTokenB, backgroundColor: 'rgba(255, 99, 132, 0.7)' },
+        { label: 'Token C Balance', data: multiTokenC, backgroundColor: 'rgba(75, 192, 192, 0.7)' }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { title: { display: true, text: 'Multicoin Pool Balances (Arbitrage Adjusted)' } },
+      scales: {
+        x: {
+          title: { display: true, text: 'Crash Severity and Total USD Value' },
+          ticks: {
+            callback: (val, idx) => [`${labels[idx]}`, `USD: ${ (3000*Math.pow(pValues[idx],1/3)).toFixed(2)}`]
+          }
         },
-        scales: {
-          x: {
-            title: { display: true, text: 'Crash Severity and Total USD Value' },
-            ticks: {
-              callback: function(value, index) {
-                let p = pValues[index];
-                let totalUSD = 3000 * Math.pow(p, 1/3);
-                return [labels[index], "USD: " + totalUSD.toFixed(2)];
-              }
-            }
-          },
-          y: { title: { display: true, text: 'Token Balance' } }
-        }
+        y: { title: { display: true, text: 'Token Balance' } }
       }
-    });
+    }
+  });
 
-    // USD Capital Retained Chart
-    const ctxUSD = document.getElementById('chartUSD').getContext('2d');
-    const chartUSD = new Chart(ctxUSD, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [
-          { label: 'Standard Pool USD', data: standardUSD, borderColor: 'rgba(54, 162, 235, 0.7)', fill: false, tension: 0.1 },
-          { label: 'Multicoin Pool USD', data: multiUSD, borderColor: 'rgba(255, 99, 132, 0.7)', fill: false, tension: 0.1 }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          title: { display: true, text: 'USD Capital Retained Post Crash' }
-        },
-        scales: {
-          x: { title: { display: true, text: 'Crash Severity' } },
-          y: { title: { display: true, text: 'USD Capital Retained' } }
-        }
+  // USD Capital Retained Chart
+  new Chart(document.getElementById('chartUSD').getContext('2d'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Standard Pool USD', data: standardUSD, borderColor: 'rgba(54, 162, 235, 0.7)', fill: false, tension: 0.1 },
+        { label: 'Multicoin Pool USD', data: multiUSD,    borderColor: 'rgba(255, 99, 132, 0.7)', fill: false, tension: 0.1 }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { title: { display: true, text: 'USD Capital Retained Post Crash' } },
+      scales: {
+        x: { title: { display: true, text: 'Crash Severity' } },
+        y: { title: { display: true, text: 'USD Capital Retained' } }
       }
-    });
-  </script>
+    }
+  });
+</script>
 </body>
 </html>

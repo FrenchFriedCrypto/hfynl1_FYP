@@ -10,7 +10,6 @@
       font-family: Arial, sans-serif;
       margin: 20px;
     }
-    /* Navigation bar styled as inline buttons */
     .navbar {
       text-align: center;
       margin-bottom: 20px;
@@ -30,50 +29,78 @@
     .navbar a:hover {
       background-color: #ddd;
     }
-    .container {
-      max-width: 1100px;
-      margin: 0 auto;
+
+    /* intro text container */
+    .intro-container {
+      max-width: 800px;
+      margin: 0 auto 30px;
+      line-height: 1.5;
+    }
+    .intro-container h2 {
+      margin-bottom: 10px;
       text-align: center;
     }
+    .intro-container p {
+      text-align: justify;
+    }
+
+    /* charts flex row */
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
     .chart-container {
-      width: 1050px;
-      margin: 30px auto;
+      flex: 1 1 700px;       /* grow, shrink, base width = 700px */
+      min-width: 700px;
+      min-height: 450px;
+      margin: 0 10px 20px;
+      text-align: center;
+    }
+    .chart-container canvas {
+      max-width: 100%;
+      max-height: 100%;
+    }
+    .chart-container h3 {
+      margin-bottom: 10px;
     }
   </style>
 </head>
 <body>
   <div class="navbar">
     <a href="token_slippage.html">Slippage</a>
-<!--    <a href="token_crash_base.html">Crash</a>-->
     <a href="token_crash_equal.html">Crash Adj</a>
     <a href="token_hop.html">Hop</a>
     <a href="token_hop_one.html">Hop Pool</a>
     <a href="token_mev.html">MEV</a>
     <a href="captial_manage.html">Capital (3)</a>
-<!--    <a href="captial_manage_4.html">Capital (4)</a>-->
-<!--    <a href="captial_manage_5.html">Capital (5)</a>-->
     <a href="captial_manage_6.html">Capital (6)</a>
     <a href="captial_manage_comparison.html">$ Comparison</a>
   </div>
-  <div class="container">
+
+  <!-- intro text -->
+  <div class="intro-container">
     <h2>Capital Efficiency Comparison</h2>
     <p>
       In a dual liquidity pool setup for tokens A, B, and C, you must create two pools (e.g. A–B and A–C). Each pool requires 1000 tokens of each asset. With tokens priced at $1, this amounts to $2000 per pool and a total of $4000.
       In contrast, a multicoin liquidity pool requires 1000 tokens of each asset in a single pool, totaling $3000.
     </p>
+  </div>
 
-    <!-- Dual Pools Chart -->
+  <!-- charts laid out side-by-side, wrapping as needed -->
+  <div class="container">
     <div class="chart-container">
+      <h3>Dual Liquidity Pools Capital Requirement<br>(Total USD: $4000)</h3>
       <canvas id="dualChart"></canvas>
     </div>
 
-    <!-- Multicoin Pool Chart -->
     <div class="chart-container">
+      <h3>Multicoin Liquidity Pool Capital Requirement<br>(Total USD: $3000)</h3>
       <canvas id="multiChart"></canvas>
     </div>
   </div>
 
-  <script>
+<script>
     // ---------------------------
     // Dual Liquidity Pools Chart
     // ---------------------------

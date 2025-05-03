@@ -10,7 +10,7 @@
       font-family: Arial, sans-serif;
       margin: 20px;
     }
-    /* Navigation bar styled as inline buttons */
+
     .navbar {
       text-align: center;
       margin-bottom: 20px;
@@ -30,60 +30,80 @@
     .navbar a:hover {
       background-color: #ddd;
     }
-    .container {
-      max-width: 1100px;
-      margin: 0 auto;
+
+    /* Intro text container */
+    .intro-container {
+      max-width: 800px;
+      margin: 0 auto 30px;
+      line-height: 1.5;
+    }
+    .intro-container h2 {
+      margin-bottom: 10px;
       text-align: center;
     }
+    .intro-container p {
+      text-align: justify;
+    }
+
+    /* Charts flex row */
+    .container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
     .chart-container {
-      width: 1050px;
-      margin: 0 auto 50px;
+      flex: 1 1 700px;
+      min-width: 700px;
+      min-height: 450px;
+      margin: 0 10px 20px;
+      text-align: center;
+    }
+    .chart-container h3 {
+      margin-bottom: 10px;
     }
   </style>
 </head>
 <body>
   <div class="navbar">
     <a href="token_slippage.html">Slippage</a>
-<!--    <a href="token_crash_base.html">Crash</a>-->
     <a href="token_crash_equal.html">Crash Adj</a>
     <a href="token_hop.html">Hop</a>
     <a href="token_hop_one.html">Hop Pool</a>
     <a href="token_mev.html">MEV</a>
     <a href="captial_manage.html">Capital (3)</a>
-<!--    <a href="captial_manage_4.html">Capital (4)</a>-->
-<!--    <a href="captial_manage_5.html">Capital (5)</a>-->
     <a href="captial_manage_6.html">Capital (6)</a>
     <a href="captial_manage_comparison.html">$ Comparison</a>
   </div>
-  <div class="container">
+
+  <!-- Intro text -->
+  <div class="intro-container">
     <h2>MEV Bot Influence Simulation on Liquidity Pools</h2>
     <p>
-      This page simulates the effects of an MEV bot on a constant‑product liquidity pool. For each “tier” (the x‑axis, from 10% to 100% of the available token A),
-      the bot front‑runs by swapping that fraction of token A into the pool before a user swaps 100 tokens of A. Then, the bot back‑runs by swapping its acquired tokens back to A.
-      In the dual‑token pool (A–B) the simulation uses 1000 tokens of A, while in the multicoin pool we now split the 1000 tokens of A into two sub‑pools (500 A each).
-      The ideal (no‑slippage) user swap in the dual pool would yield 100 tokens, while in the multicoin pool the ideal output is doubled (200 tokens total)
+      This page simulates the effects of an MEV bot on a constant-product liquidity pool. For each “tier” (the x-axis, from 10% to 100% of the available token A),
+      the bot front-runs by swapping that fraction of token A into the pool before a user swaps 100 tokens of A. Then, the bot back-runs by swapping its acquired tokens back to A.
+      In the dual-token pool (A–B) the simulation uses 1000 tokens of A, while in the multicoin pool we now split the 1000 tokens of A into two sub-pools (500 A each).
+      The ideal (no-slippage) user swap in the dual pool would yield 100 tokens, while in the multicoin pool the ideal output is doubled (200 tokens total)
       because the user can draw liquidity from both output tokens (B and C).
     </p>
+  </div>
 
-    <!-- Dual Pool Chart -->
+  <!-- Charts laid out side-by-side, wrapping as needed -->
+  <div class="container">
     <div class="chart-container">
       <h3>Dual Token Liquidity Pool (A–B)</h3>
       <canvas id="mevChart"></canvas>
     </div>
 
-    <!-- Multicoin Pool Chart -->
     <div class="chart-container">
       <h3>Multicoin Liquidity Pool (A, B, &amp; C)</h3>
       <canvas id="mevMultiChart"></canvas>
     </div>
 
-    <!-- New: User Slippage Comparison Chart -->
     <div class="chart-container">
       <h3>User Slippage Comparison (Dual vs Multicoin)</h3>
       <canvas id="userSlippageComparisonChart"></canvas>
     </div>
 
-    <!-- New: Bot Profit Comparison Chart -->
     <div class="chart-container">
       <h3>Bot Profit Comparison (Dual vs Multicoin)</h3>
       <canvas id="botProfitComparisonChart"></canvas>
