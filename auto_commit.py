@@ -18,7 +18,7 @@ def check_remote():
         "git remote -v", shell=True, capture_output=True, text=True)
     if result.returncode != 0 or not result.stdout:
         print("No remote repository configured. Adding remote repository.")
-        remote_url = "https://github.com/FrenchFriedCrypto/fyp2"
+        remote_url = "https://github.com/FrenchFriedCrypto/hfynl1_FYP"
         run_command(f"git remote add origin {remote_url}")
 
 

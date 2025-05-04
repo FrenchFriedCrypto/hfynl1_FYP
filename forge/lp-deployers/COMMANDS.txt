@@ -1,0 +1,21 @@
+First test wallet private Key
+0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+
+Run anvil
+anvil
+
+Run anvil and safe state on close
+anvil   --port 8545   --chain-id 31337   --state anvil-state.json   --preserve-historical-states
+
+Compile Smart Contracts
+forge build
+
+Batch commamnds for Minting Tokens on chain
+ensure that you terminal path is in the lp-deployers folder before sending the following commands
+forge create --broadcast   src/MyToken.sol:MyToken   --rpc-url http://127.0.0.1:8545   --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80   --chain 31337   --constructor-args     "TokenA" "USDA" 1000000000000000000000000
+forge create --broadcast   src/MyToken.sol:MyToken   --rpc-url http://127.0.0.1:8545   --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80   --chain 31337   --constructor-args     "TokenB" "BTCB" 1000000000000000000000000
+forge create --broadcast   src/MyToken.sol:MyToken   --rpc-url http://127.0.0.1:8545   --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80   --chain 31337   --constructor-args     "TokenC" "USDC" 1000000000000000000000000
+forge create --broadcast   src/MyToken.sol:MyToken   --rpc-url http://127.0.0.1:8545   --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80   --chain 31337   --constructor-args     "TokenD" "USDD" 1000000000000000000000000
+forge create --broadcast   src/MyToken.sol:MyToken   --rpc-url http://127.0.0.1:8545   --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80   --chain 31337   --constructor-args     "TokenE" "ETHE" 1000000000000000000000000
+forge create --broadcast   src/MyToken.sol:MyToken   --rpc-url http://127.0.0.1:8545   --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80   --chain 31337   --constructor-args     "TokenF" "FILF" 1000000000000000000000000
+

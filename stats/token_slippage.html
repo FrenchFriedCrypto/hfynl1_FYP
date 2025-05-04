@@ -110,15 +110,15 @@
     const swapAmounts = [10, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900];
 
     // Arrays for Dual Pool
-    const dualTokenA = [];   // new balance of Token A = 1000 + Δx
-    const dualTokenB = [];   // new balance of Token B = 1000 - (actual output)
-    const dualSlippage = []; // slippage % = ((estimated - actual)/estimated)*100, where estimated = Δx
+    const dualTokenA = [];
+    const dualTokenB = [];
+    const dualSlippage = [];
 
     // Arrays for Multicoin Pool
-    const multiTokenA = [];   // new balance of Token A = 1000 + Δx
-    const multiTokenB = [];   // new balance of Token B = 1000 - (half the output)
-    const multiTokenC = [];   // new balance of Token C = 1000 - (half the output)
-    const multiSlippage = []; // slippage % for multicoin pool
+    const multiTokenA = [];
+    const multiTokenB = [];
+    const multiTokenC = [];
+    const multiSlippage = [];
 
     // Reduction factor for multicoin pool slippage (simulate improved pricing)
     const K = 3;
@@ -128,9 +128,9 @@
       // --- Dual Pool Calculations ---
       // Starting reserves: A = 1000, B = 1000, invariant: (1000+Δx) * (1000-Δy) = 1,000,000.
       const newA_dual = 1000 + amount;
-      const dualOutput = 1000 - (1000000 / (1000 + amount)); // actual Token B output
+      const dualOutput = 1000 - (1000000 / (1000 + amount));
       const newB_dual = 1000 - dualOutput;
-      const estimatedOutput_dual = amount; // since 1:1 price before swap
+      const estimatedOutput_dual = amount;
       const slippage_dual = ((estimatedOutput_dual - dualOutput) / estimatedOutput_dual) * 100;
 
       dualTokenA.push(newA_dual);
@@ -141,11 +141,11 @@
       // Assume pool has three tokens: A, B, C. Both output tokens (B & C) are used,
       // so the estimated (no‐slippage) output is 2*Δx.
       // For modeling, we first compute the dual pool’s output and then reduce its percentage slippage.
-      const s_dual = (amount - dualOutput) / amount; // dual pool slippage as a fraction
-      const s_multi = s_dual / K;                   // reduced slippage in multicoin pool
-      const estimatedOutput_multi = 2 * amount;      // ideal output (from B+C)
-      const actualOutput_multi = estimatedOutput_multi * (1 - s_multi); // total actual output
-      const outputEach = actualOutput_multi / 2;     // assume equal draw from B and C
+      const s_dual = (amount - dualOutput) / amount;
+      const s_multi = s_dual / K;
+      const estimatedOutput_multi = 2 * amount;
+      const actualOutput_multi = estimatedOutput_multi * (1 - s_multi);
+      const outputEach = actualOutput_multi / 2;
       const newA_multi = 1000 + amount;
       const newB_multi = 1000 - outputEach;
       const newC_multi = 1000 - outputEach;
